@@ -1,0 +1,40 @@
+{
+  "name": "storyshelf-fe",
+  "version": "0.0.0",
+  "scripts": {
+    "ng": "ng",
+    "start": "ng serve --port 3001",
+    "build": "ng build",
+    "watch": "ng build --watch --configuration development"
+  },
+  "private": true,
+  "dependencies": {
+    "@angular/animations": "^19.2.0",
+    "@angular/common": "^19.2.0",
+    "@angular/compiler": "^19.2.0",
+    "@angular/core": "^19.2.0",
+    "@angular/forms": "^19.2.0",
+    "@angular/platform-browser": "^19.2.0",
+    "@angular/platform-browser-dynamic": "^19.2.0",
+    "@angular/router": "^19.2.0",
+    "@ng-bootstrap/ng-bootstrap": "^18.0.0",
+    "@popperjs/core": "^2.11.8",
+    "@stripe/stripe-js": "^5.6.0",
+    "bootstrap": "^5.3.3",
+    "date-fns": "^4.1.0",
+    "epubjs": "^0.3.93",
+    "jwt-decode": "^4.0.0",
+    "pdfjs-dist": "^4.10.38",
+    "rxjs": "~7.8.0",
+    "tslib": "^2.3.0",
+    "zone.js": "~0.15.0"
+  },
+  "devDependencies": {
+    "@angular-devkit/build-angular": "^19.2.0",
+    "@angular/cli": "^19.2.0",
+    "@angular/compiler-cli": "^19.2.0",
+    "@angular/localize": "^19.2.0",
+    "prettier": "^3.5.0",
+    "typescript": "~5.7.2"
+  }
+}
