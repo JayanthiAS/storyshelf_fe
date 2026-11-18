@@ -165,11 +165,16 @@ export class VerifyEmailComponent implements OnInit {
   loading = signal(false);
   error = signal('');
   cooldown = signal(0);
-  email = '';
   form = this.fb.group({ code: ['', Validators.required] });
 
+  get email(): string {
+    return this.auth.getPendingEmail() || this.auth.currentUser()?.email || '';
+  }
+
   ngOnInit(): void {
-    this.email = this.auth.getPendingEmail() || this.auth.currentUser()?.email || '';
+    if (this.auth.isAuthenticated() && !this.auth.currentUser()) {
+      this.auth.fetchMe().subscribe();
+    }
   }
 
   submit(): void {

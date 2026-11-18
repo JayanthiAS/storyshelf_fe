@@ -10,7 +10,7 @@ import { AuthService } from '../../core/auth/auth.service';
 import { GuruCardComponent, SpinnerComponent, PaginationComponent, EmptyStateComponent, BreadcrumbComponent } from '../../shared/layout/layout.components';
 import { FileUploadComponent } from '../../shared/components/shared.components';
 import { ToastService } from '../../shared/services/toast.service';
-import { DashboardStats, RecentActivity, Notification, BroadcastNotificationDto } from '../../core/models/notification.model';
+import { DashboardStats, DashboardAnalytics, AnalyticsGranularity, AnalyticsPoint, RecentActivity, Notification, BroadcastNotificationDto } from '../../core/models/notification.model';
 import { User } from '../../core/models/user.model';
 import { Book, Author, Genre, Series, CreateBookDto } from '../../core/models/book.model';
 import { SubscriptionPlan } from '../../core/models/subscription-plan.model';
@@ -26,14 +26,63 @@ import { formatDate, formatBytes, BOOK_FILE_TYPES, IMAGE_FILE_TYPES, getEntityId
     <h2 class="mb-4">Dashboard</h2>
     @if (loading()) { <app-spinner /> } @else if (stats()) {
       <div class="row">
-        <div class="col-md-3"><div class="card widget-card-1"><div class="card-block-small"><i class="icofont icofont-users bg-c-blue card1-icon"></i><span class="text-c-blue">Users</span><h4>{{ stats()!.users }}</h4></div></div></div>
-        <div class="col-md-3"><div class="card widget-card-1"><div class="card-block-small"><i class="icofont icofont-book bg-c-pink card1-icon"></i><span class="text-c-pink">Books</span><h4>{{ stats()!.books }}</h4></div></div></div>
+        <div class="col-md-3"><div class="card widget-card-1"><div class="card-block-small"><i class="icofont icofont-users bg-c-blue card1-icon"></i><span class="text-c-blue">Users</span><h4>{{ stats()!.totalUsers }}</h4></div></div></div>
+        <div class="col-md-3"><div class="card widget-card-1"><div class="card-block-small"><i class="icofont icofont-book bg-c-pink card1-icon"></i><span class="text-c-pink">Books</span><h4>{{ stats()!.totalBooks }}</h4></div></div></div>
         <div class="col-md-3"><div class="card widget-card-1"><div class="card-block-small"><i class="icofont icofont-credit-card bg-c-green card1-icon"></i><span class="text-c-green">Active Subs</span><h4>{{ stats()!.activeSubscriptions }}</h4></div></div></div>
-        <div class="col-md-3"><div class="card widget-card-1"><div class="card-block-small"><i class="icofont icofont-dollar bg-c-yellow card1-icon"></i><span class="text-c-yellow">Revenue</span><h4>{{ stats()!.revenue / 100 | currency:'USD' }}</h4></div></div></div>
+        <div class="col-md-3"><div class="card widget-card-1"><div class="card-block-small"><i class="icofont icofont-lock bg-c-yellow card1-icon"></i><span class="text-c-yellow">Locked Books</span><h4>{{ stats()!.lockedBooks }}</h4></div></div></div>
       </div>
+
+      <app-guru-card title="Reading and logins">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+          <div class="btn-group btn-group-sm">
+            @for (option of granularities; track option) {
+              <button type="button" class="btn" [class.btn-primary]="granularity() === option" [class.btn-outline-primary]="granularity() !== option" (click)="setGranularity(option)">{{ option }}</button>
+            }
+          </div>
+          <div class="d-flex gap-3 small">
+            <span><i class="d-inline-block rounded" style="width:10px;height:10px;background:#4099ff"></i> Reading users</span>
+            <span><i class="d-inline-block rounded" style="width:10px;height:10px;background:#2ed8b6"></i> Logged-in users</span>
+          </div>
+        </div>
+        @if (analytics()) {
+          <div class="row g-2 mb-3">
+            <div class="col-md-4"><div class="border rounded p-2"><div class="text-muted small">Reading users</div><strong>{{ analytics()!.totals.readingUsers }}</strong></div></div>
+            <div class="col-md-4"><div class="border rounded p-2"><div class="text-muted small">Logged-in users</div><strong>{{ analytics()!.totals.loggedInUsers }}</strong></div></div>
+            <div class="col-md-4"><div class="border rounded p-2"><div class="text-muted small">New signups</div><strong>{{ analytics()!.totals.newSignups }}</strong></div></div>
+          </div>
+          <div class="overflow-auto">
+            <svg [attr.viewBox]="'0 0 ' + chartWidth() + ' 200'" [attr.width]="chartWidth()" height="200" role="img" aria-label="Reading users and logged-in users">
+              @for (bar of chartBars(); track bar.period) {
+                <rect [attr.x]="bar.readingX" [attr.y]="bar.readingY" width="10" [attr.height]="bar.readingHeight" fill="#4099ff">
+                  <title>{{ bar.period }}: {{ bar.readingUsers }} reading users</title>
+                </rect>
+                <rect [attr.x]="bar.loginX" [attr.y]="bar.loginY" width="10" [attr.height]="bar.loginHeight" fill="#2ed8b6">
+                  <title>{{ bar.period }}: {{ bar.loggedInUsers }} logged-in users</title>
+                </rect>
+                @if (bar.showLabel) {
+                  <text [attr.x]="bar.labelX" y="194" font-size="9" fill="#6c757d">{{ bar.label }}</text>
+                }
+              }
+            </svg>
+          </div>
+          <p class="text-muted small mt-2 mb-0">Login counts start from this release. Earlier sign-ins were not stored.</p>
+        } @else if (analyticsLoading()) {
+          <app-spinner />
+        }
+        <h6 class="mt-4">Top books</h6>
+        <table class="table table-sm mb-0">
+          <thead><tr><th>Title</th><th>Readers</th><th>Sessions</th><th>Minutes</th></tr></thead>
+          <tbody>
+            @for (book of analytics()?.topBooks ?? []; track book.bookId) {
+              <tr><td>{{ book.title }}</td><td>{{ book.readers }}</td><td>{{ book.sessions }}</td><td>{{ book.minutes }}</td></tr>
+            } @empty { <tr><td colspan="4" class="text-muted">No reading sessions in this range</td></tr> }
+          </tbody>
+        </table>
+      </app-guru-card>
+
       <app-guru-card title="Recent Activity">
         <table class="table"><tbody>
-          @for (a of activity(); track a.createdAt) {
+          @for (a of activity(); track $index) {
             <tr><td>{{ a.description }}</td><td class="text-muted">{{ a.createdAt | date:'short' }}</td></tr>
           } @empty { <tr><td colspan="2">No recent activity</td></tr> }
         </tbody></table>
@@ -44,11 +93,67 @@ import { formatDate, formatBytes, BOOK_FILE_TYPES, IMAGE_FILE_TYPES, getEntityId
 export class AdminDashboardComponent implements OnInit {
   private dashboard = inject(AdminDashboardService);
   loading = signal(true);
+  analyticsLoading = signal(true);
   stats = signal<DashboardStats | null>(null);
   activity = signal<RecentActivity[]>([]);
+  analytics = signal<DashboardAnalytics | null>(null);
+  granularity = signal<AnalyticsGranularity>('month');
+  granularities: AnalyticsGranularity[] = ['day', 'month', 'year'];
+
   ngOnInit(): void {
-    this.dashboard.getStats().subscribe((s) => this.stats.set(s));
-    this.dashboard.getRecentActivity().subscribe((a) => { this.activity.set(a); this.loading.set(false); });
+    this.dashboard.getStats().subscribe({
+      next: (s) => this.stats.set(s),
+      error: () => this.loading.set(false),
+    });
+    this.dashboard.getRecentActivity().subscribe({
+      next: (a) => { this.activity.set(a); this.loading.set(false); },
+      error: () => this.loading.set(false),
+    });
+    this.loadAnalytics();
+  }
+
+  setGranularity(value: AnalyticsGranularity): void {
+    if (this.granularity() === value) return;
+    this.granularity.set(value);
+    this.loadAnalytics();
+  }
+
+  chartWidth(): number {
+    return Math.max(240, (this.analytics()?.series.length ?? 0) * 36);
+  }
+
+  chartBars(): Array<AnalyticsPoint & { readingX: number; loginX: number; readingY: number; loginY: number; readingHeight: number; loginHeight: number; labelX: number; label: string; showLabel: boolean }> {
+    const series = this.analytics()?.series ?? [];
+    const max = Math.max(1, ...series.map((point) => Math.max(point.readingUsers, point.loggedInUsers)));
+    const every = this.granularity() === 'day' ? 5 : 1;
+    return series.map((point, index) => {
+      const readingHeight = Math.round((point.readingUsers / max) * 150);
+      const loginHeight = Math.round((point.loggedInUsers / max) * 150);
+      const x = index * 36;
+      return {
+        ...point,
+        readingX: x,
+        loginX: x + 12,
+        readingHeight,
+        loginHeight,
+        readingY: 170 - readingHeight,
+        loginY: 170 - loginHeight,
+        labelX: x,
+        label: this.granularity() === 'day' ? point.period.slice(5) : point.period,
+        showLabel: index % every === 0,
+      };
+    });
+  }
+
+  private loadAnalytics(): void {
+    this.analyticsLoading.set(true);
+    this.dashboard.getAnalytics(this.granularity()).subscribe({
+      next: (data) => {
+        this.analytics.set(data);
+        this.analyticsLoading.set(false);
+      },
+      error: () => this.analyticsLoading.set(false),
+    });
   }
 }
 
@@ -160,6 +265,12 @@ export class AdminUsersDeletedComponent implements OnInit {
               @if (auth.currentUser()?.isSuperAdmin) { <option value="admin">Admin</option> }
             </select>
           </div>
+          <div class="col-md-6 mb-3 d-flex align-items-end">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="isEmailVerified" formControlName="isEmailVerified" />
+              <label class="form-check-label" for="isEmailVerified">Email verified</label>
+            </div>
+          </div>
         </div>
         @if (isEdit) {
           <button type="button" class="btn btn-outline-warning me-2" (click)="toggleActive()">{{ user()?.isActive ? 'Deactivate' : 'Activate' }}</button>
@@ -181,6 +292,7 @@ export class AdminUserFormComponent implements OnInit {
   form = this.fb.group({
     firstName: ['', Validators.required], lastName: ['', Validators.required],
     email: ['', Validators.required], password: [''], role: ['user'],
+    isEmailVerified: [true],
   });
   ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('id');
@@ -270,9 +382,15 @@ export class AdminBooksComponent implements OnInit {
               <div class="col-md-6 mb-3 form-check mt-4"><input type="checkbox" class="form-check-input" formControlName="isLocked" id="locked" /><label class="form-check-label" for="locked">Premium (Locked)</label></div>
             </div>
             <div class="mb-3"><label class="form-label">Genres</label>
-              <select class="form-select" multiple formControlName="genreIds">
-                @for (g of genres(); track g._id) { <option [value]="g._id">{{ g.name }}</option> }
-              </select>
+              <div class="border rounded p-2 d-flex flex-wrap gap-3" style="max-height: 180px; overflow-y: auto">
+                @for (g of genres(); track g._id) {
+                  <div class="form-check">
+                    <input type="checkbox" class="form-check-input" [id]="'genre-' + g._id"
+                      [checked]="isGenreSelected(g._id)" (change)="toggleGenre(g._id)" />
+                    <label class="form-check-label" [for]="'genre-' + g._id">{{ g.name }}</label>
+                  </div>
+                } @empty { <small class="text-muted">No genres available</small> }
+              </div>
             </div>
             <button type="button" class="btn btn-primary" (click)="save()">Save Metadata</button>
           </form>
@@ -337,6 +455,16 @@ export class AdminBookFormComponent implements OnInit {
         });
       });
     }
+  }
+  isGenreSelected(id: string): boolean {
+    return (this.form.controls.genreIds.value ?? []).includes(id);
+  }
+  toggleGenre(id: string): void {
+    const current = this.form.controls.genreIds.value ?? [];
+    this.form.controls.genreIds.setValue(
+      current.includes(id) ? current.filter((g) => g !== id) : [...current, id],
+    );
+    this.form.controls.genreIds.markAsDirty();
   }
   save(): void {
     const v = this.form.getRawValue();
@@ -517,7 +645,6 @@ export class AdminTaxonomyComponent implements OnInit, OnDestroy {
 
   loadGenres(): void {
     this.loading.set(true);
-    // Use sort=name so admin requests bypass stale Redis cache keys from public pages
     this.genreService.list({ page: 1, limit: 100, sort: 'name' }).subscribe({
       next: (r) => {
         this.items.set(r.items as unknown as Record<string, unknown>[]);

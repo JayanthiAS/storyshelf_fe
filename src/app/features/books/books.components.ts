@@ -258,15 +258,30 @@ export class SearchPageComponent implements OnInit {
   query = '';
 
   ngOnInit(): void {
-    this.route.queryParams.subscribe((p) => { this.query = p['q'] || ''; if (this.query.length >= 2) this.search(); });
+    this.route.queryParams.subscribe((p) => {
+      const next = p['q'] || '';
+      if (next !== this.query) this.page.set(1);
+      this.query = next;
+      if (this.query.length >= 2) this.search();
+      else {
+        this.books.set([]);
+        this.loading.set(false);
+      }
+    });
   }
 
   search(): void {
     this.loading.set(true);
-    this.searchService.searchBooks(this.query, { page: this.page(), limit: 12 }).subscribe((r) => {
-      this.books.set(r.items);
-      this.totalPages.set(r.meta.totalPages);
-      this.loading.set(false);
+    this.searchService.searchBooks(this.query, { page: this.page(), limit: 12 }).subscribe({
+      next: (r) => {
+        this.books.set(r.items);
+        this.totalPages.set(r.meta.totalPages);
+        this.loading.set(false);
+      },
+      error: () => {
+        this.books.set([]);
+        this.loading.set(false);
+      },
     });
   }
 

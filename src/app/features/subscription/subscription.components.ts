@@ -11,7 +11,7 @@ import { ToastService } from '../../shared/services/toast.service';
 import { SubscriptionPlan } from '../../core/models/subscription-plan.model';
 import { SubscriptionMeResponse } from '../../core/models/subscription.model';
 import { SubscriptionStatus } from '../../core/models/enums.model';
-import { formatDate } from '../../core/utils/helpers';
+import { formatDate, getEntityId } from '../../core/utils/helpers';
 import { User } from '../../core/models/user.model';
 import { Book } from '../../core/models/book.model';
 import { Notification } from '../../core/models/notification.model';
@@ -27,7 +27,15 @@ import { BookCardComponent } from '../../shared/components/shared.components';
     @if (loading()) { <app-spinner /> } @else {
       <div class="row g-4 justify-content-center">
         @for (plan of plans(); track plan._id) {
-          <div class="col-md-4"><app-plan-card [plan]="plan" [ctaLabel]="ctaLabel(plan)" [disabled]="checkoutLoading()" (select)="checkout($event)" /></div>
+          <div class="col-md-4">
+            <app-plan-card
+              [plan]="plan"
+              [isCurrent]="isCurrentPlan(plan)"
+              [ctaLabel]="ctaLabel(plan)"
+              [disabled]="checkoutLoading() || isCurrentPlan(plan)"
+              (select)="checkout($event)"
+            />
+          </div>
         }
       </div>
     }
@@ -42,26 +50,43 @@ export class PricingComponent implements OnInit {
   checkoutLoading = signal(false);
   plans = signal<SubscriptionPlan[]>([]);
   currentPlanId = signal<string | null>(null);
+  currentPlanPrice = signal<number | null>(null);
 
   ngOnInit(): void {
     this.subService.getPlans({ limit: 20 }).subscribe((r) => { this.plans.set(r.items); this.loading.set(false); });
     if (this.auth.isAuthenticated()) {
-      this.subService.getMySubscription().subscribe((r) => this.currentPlanId.set(typeof r.plan === 'object' ? r.plan._id : r.plan as unknown as string));
+      this.subService.getMySubscription().subscribe((r) => this.setCurrentPlan(r.plan));
     }
   }
 
+  isCurrentPlan(plan: SubscriptionPlan): boolean {
+    const currentId = this.currentPlanId();
+    return !!currentId && currentId === getEntityId(plan);
+  }
+
   ctaLabel(plan: SubscriptionPlan): string {
-    if (plan.isDefault) return 'Current Plan';
-    if (!this.auth.isAuthenticated()) return 'Sign up to subscribe';
-    if (this.currentPlanId() === plan._id) return 'Current Plan';
-    return plan.price === 0 ? 'Downgrade' : 'Subscribe';
+    if (!this.auth.isAuthenticated()) {
+      return plan.price === 0 ? 'Sign up' : 'Sign up to subscribe';
+    }
+    if (this.isCurrentPlan(plan)) return 'Current Plan';
+    const currentPrice = this.currentPlanPrice();
+    if (currentPrice !== null) {
+      if (plan.price < currentPrice) return 'Downgrade';
+      if (plan.price > currentPrice) return 'Upgrade';
+    }
+    return 'Subscribe';
   }
 
   checkout(plan: SubscriptionPlan): void {
     if (!this.auth.isAuthenticated()) { this.router.navigate(['/register']); return; }
-    if (plan.isDefault || this.currentPlanId() === plan._id) return;
-    if (plan.price === 0) {
-      this.subService.upgrade(plan._id).subscribe(() => this.toast.success('Plan updated'));
+    if (this.isCurrentPlan(plan)) return;
+    if (plan.price === 0 || plan.isDefault) {
+      this.subService.upgrade(plan._id).subscribe({
+        next: () => {
+          this.setCurrentPlan(plan);
+          this.toast.success('Plan updated');
+        },
+      });
       return;
     }
     this.checkoutLoading.set(true);
@@ -69,6 +94,16 @@ export class PricingComponent implements OnInit {
       next: (r) => { window.location.href = r.url; },
       error: () => this.checkoutLoading.set(false),
     });
+  }
+
+  private setCurrentPlan(plan: SubscriptionPlan | string): void {
+    if (typeof plan === 'string') {
+      this.currentPlanId.set(plan);
+      this.currentPlanPrice.set(null);
+      return;
+    }
+    this.currentPlanId.set(getEntityId(plan));
+    this.currentPlanPrice.set(plan.price);
   }
 }
 
@@ -267,9 +302,9 @@ export class LikesComponent implements OnInit {
     @if (loading()) { <app-spinner /> } @else if (!items().length) { <app-empty-state message="No notifications" /> }
     @else {
       @for (n of items(); track n._id) {
-        <div class="card mb-2 p-3" [class.border-primary]="!n.isRead" (click)="markRead(n)">
+        <div class="card mb-2 p-3" role="button" [class.border-primary]="!n.isRead" (click)="open(n)">
           <div class="d-flex justify-content-between">
-            <strong>{{ n.title }}</strong>
+            <strong [class.fw-normal]="n.isRead">{{ n.title }}</strong>
             <small class="text-muted">{{ n.createdAt | date:'short' }}</small>
           </div>
           <p class="mb-0 text-muted">{{ n.body }}</p>
@@ -280,12 +315,29 @@ export class LikesComponent implements OnInit {
 })
 export class NotificationsPageComponent implements OnInit {
   private service = inject(NotificationService);
+  private router = inject(Router);
   loading = signal(true);
   items = signal<Notification[]>([]);
   ngOnInit(): void { this.load(); }
   load(): void { this.service.list({ limit: 50 }).subscribe((r) => { this.items.set(r.items); this.loading.set(false); }); }
-  markRead(n: Notification): void { if (!n.isRead) this.service.markRead(n._id).subscribe(() => this.load()); }
-  markAll(): void { this.service.markAllRead().subscribe(() => this.load()); }
+
+  open(n: Notification): void {
+    if (!n.isRead) {
+      this.setRead(n._id, true);
+      this.service.markRead(n._id).subscribe({ error: () => this.setRead(n._id, false) });
+    }
+    const bookId = n.metadata?.bookId;
+    if (bookId) this.router.navigate(['/books', bookId]);
+  }
+
+  markAll(): void {
+    this.items.update((list) => list.map((n) => ({ ...n, isRead: true })));
+    this.service.markAllRead().subscribe({ error: () => this.load() });
+  }
+
+  private setRead(id: string, isRead: boolean): void {
+    this.items.update((list) => list.map((n) => (n._id === id ? { ...n, isRead } : n)));
+  }
 }
 
 @Component({

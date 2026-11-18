@@ -6,7 +6,7 @@ import { resolveUploadUrl, formatDate, isFutureDate, getAuthorName, validateUplo
 import { Book } from '../../core/models/book.model';
 import { AuthService } from '../../core/auth/auth.service';
 import { SubscriptionPlan } from '../../core/models/subscription-plan.model';
-import { SearchService } from '../../core/services/domain.service';
+import { SearchService, SearchSuggestion } from '../../core/services/domain.service';
 
 @Component({
   selector: 'app-book-card',
@@ -54,7 +54,7 @@ export class BookCardComponent {
   standalone: true,
   imports: [CommonModule],
   template: `
-    <div class="card h-100" [class.border-primary]="plan.isDefault">
+    <div class="card h-100" [class.border-primary]="isCurrent">
       <div class="card-body text-center">
         <h5>{{ plan.name }}</h5>
         <h2 class="text-c-blue">
@@ -73,6 +73,7 @@ export class BookCardComponent {
 })
 export class PlanCardComponent {
   @Input({ required: true }) plan!: SubscriptionPlan;
+  @Input() isCurrent = false;
   @Input() ctaLabel = 'Choose Plan';
   @Input() disabled = false;
   select = output<SubscriptionPlan>();
@@ -81,14 +82,14 @@ export class PlanCardComponent {
 @Component({
   selector: 'app-search-bar',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule],
   template: `
     <div class="position-relative">
       <input type="search" class="form-control" placeholder="Search books..." [(ngModel)]="query" (input)="onInput()" (keydown.enter)="search()" />
       @if (suggestions.length) {
-        <div class="list-group position-absolute w-100 shadow-sm" style="z-index: 100">
-          @for (s of suggestions; track s) {
-            <a [routerLink]="['/search']" [queryParams]="{ q: s }" class="list-group-item list-group-item-action" (click)="clear()">{{ s }}</a>
+        <div class="list-group position-absolute w-100 shadow-sm" style="z-index: 100; top: 100%">
+          @for (s of suggestions; track s.id) {
+            <a href="#" class="list-group-item list-group-item-action" (click)="pick(s, $event)">{{ s.title }}</a>
           }
         </div>
       }
@@ -99,7 +100,7 @@ export class SearchBarComponent {
   private searchService = inject(SearchService);
   private router = inject(Router);
   query = '';
-  suggestions: string[] = [];
+  suggestions: SearchSuggestion[] = [];
   private debounce?: ReturnType<typeof setTimeout>;
 
   onInput(): void {
@@ -111,10 +112,17 @@ export class SearchBarComponent {
   }
 
   search(): void {
-    if (this.query.trim()) {
-      this.router.navigate(['/search'], { queryParams: { q: this.query.trim() } });
-      this.clear();
-    }
+    const q = this.query.trim();
+    if (!q) return;
+    this.clear();
+    this.router.navigate(['/search'], { queryParams: { q } });
+  }
+
+  pick(suggestion: SearchSuggestion, event: Event): void {
+    event.preventDefault();
+    this.query = suggestion.title;
+    this.clear();
+    this.router.navigate(['/search'], { queryParams: { q: suggestion.title } });
   }
 
   clear(): void { this.suggestions = []; }

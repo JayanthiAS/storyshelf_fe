@@ -55,7 +55,7 @@ import { environment } from '../../environments/environment';
 export class PublicLayoutComponent implements OnInit, OnDestroy {
   auth = inject(AuthService);
   private notifications = inject(NotificationService);
-  unreadCount = signal(0);
+  unreadCount = this.notifications.unreadCountState;
   private pollTimer?: ReturnType<typeof setInterval>;
 
   ngOnInit(): void {
@@ -67,7 +67,7 @@ export class PublicLayoutComponent implements OnInit, OnDestroy {
   }
 
   private pollNotifications(): void {
-    const load = () => this.notifications.unreadCount().subscribe((r) => this.unreadCount.set(r.count));
+    const load = () => this.notifications.unreadCount().subscribe();
     load();
     this.pollTimer = setInterval(load, environment.notificationPollMs);
   }

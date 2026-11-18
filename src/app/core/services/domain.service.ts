@@ -1,11 +1,13 @@
-import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Injectable, inject, signal } from '@angular/core';
+import { Observable, map, tap } from 'rxjs';
 import { ApiService } from '../http/api.service';
 import { PaginatedData, QueryParams } from '../models/api.model';
 import { Book } from '../models/book.model';
 import {
   BroadcastNotificationDto,
+  AnalyticsGranularity,
   CreateNotificationDto,
+  DashboardAnalytics,
   DashboardStats,
   Notification,
   ReadingProgress,
@@ -100,8 +102,12 @@ export class ReadingService {
     return this.api.put<ReadingProgress>(`/reading/progress/${bookId}`, data);
   }
 
-  logSession(dto: ReadingSessionDto): Observable<void> {
-    return this.api.post<void>('/reading/sessions', dto);
+  logSession(dto: ReadingSessionDto): Observable<{ _id: string }> {
+    return this.api.post<{ _id: string }>('/reading/sessions', dto);
+  }
+
+  updateSession(id: string, dto: { durationSeconds: number; endedAt: string }): Observable<{ _id: string }> {
+    return this.api.patch<{ _id: string }>(`/reading/sessions/${id}`, dto);
   }
 
   getHistory(params?: QueryParams): Observable<PaginatedData<Book>> {
@@ -112,13 +118,16 @@ export class ReadingService {
 @Injectable({ providedIn: 'root' })
 export class NotificationService {
   private readonly api = inject(ApiService);
+  readonly unreadCountState = signal(0);
 
   list(params?: QueryParams): Observable<PaginatedData<Notification>> {
     return this.api.getPaginated<Notification>('/notifications', params);
   }
 
   unreadCount(): Observable<{ count: number }> {
-    return this.api.get<{ count: number }>('/notifications/unread-count');
+    return this.api
+      .get<{ count: number }>('/notifications/unread-count')
+      .pipe(tap((r) => this.unreadCountState.set(r.count)));
   }
 
   getById(id: string): Observable<Notification> {
@@ -126,11 +135,15 @@ export class NotificationService {
   }
 
   markRead(id: string): Observable<Notification> {
-    return this.api.patch<Notification>(`/notifications/${id}/read`, {});
+    return this.api
+      .patch<Notification>(`/notifications/${id}/read`, {})
+      .pipe(tap(() => this.unreadCountState.update((c) => Math.max(0, c - 1))));
   }
 
   markAllRead(): Observable<void> {
-    return this.api.patch<void>('/notifications/read-all', {});
+    return this.api
+      .patch<void>('/notifications/read-all', {})
+      .pipe(tap(() => this.unreadCountState.set(0)));
   }
 
   delete(id: string): Observable<void> {
@@ -171,6 +184,11 @@ export class RecommendationService {
   }
 }
 
+export interface SearchSuggestion {
+  id: string;
+  title: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class SearchService {
   private readonly api = inject(ApiService);
@@ -179,9 +197,27 @@ export class SearchService {
     return this.api.getPaginated<Book>('/search/books', { ...params, q });
   }
 
-  suggest(q: string): Observable<string[]> {
-    return this.api.get<string[]>('/search/suggest', { q });
+  suggest(q: string): Observable<SearchSuggestion[]> {
+    return this.api
+      .get<SearchSuggestion[] | { data?: Array<SearchSuggestion | string> } | Array<SearchSuggestion | string>>(
+        '/search/suggest',
+        { q },
+      )
+      .pipe(map((payload) => normalizeSuggestions(payload)));
   }
+}
+
+function normalizeSuggestions(
+  payload: SearchSuggestion[] | { data?: Array<SearchSuggestion | string> } | Array<SearchSuggestion | string> | null,
+): SearchSuggestion[] {
+  const list = Array.isArray(payload) ? payload : payload?.data ?? [];
+  return list
+    .map((item) => {
+      if (typeof item === 'string') return { id: item, title: item };
+      if (item && typeof item.title === 'string') return { id: item.id || item.title, title: item.title };
+      return null;
+    })
+    .filter((item): item is SearchSuggestion => item !== null);
 }
 
 @Injectable({ providedIn: 'root' })
@@ -194,5 +230,9 @@ export class AdminDashboardService {
 
   getRecentActivity(): Observable<RecentActivity[]> {
     return this.api.get<RecentActivity[]>('/admin/dashboard/recent-activity');
+  }
+
+  getAnalytics(granularity: AnalyticsGranularity): Observable<DashboardAnalytics> {
+    return this.api.get<DashboardAnalytics>('/admin/dashboard/analytics', { granularity });
   }
 }

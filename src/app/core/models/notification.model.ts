@@ -23,6 +23,8 @@ export interface ReadingProgress {
   currentPage: number;
   totalPages: number;
   percentComplete: number;
+  isCompleted?: boolean;
+  completedAt?: string | null;
   lastReadAt: string;
 }
 
@@ -34,10 +36,39 @@ export interface ReadingSessionDto {
 }
 
 export interface DashboardStats {
-  users: number;
-  books: number;
+  totalUsers: number;
+  totalBooks: number;
   activeSubscriptions: number;
-  revenue: number;
+  lockedBooks: number;
+}
+
+export type AnalyticsGranularity = 'day' | 'month' | 'year';
+
+export interface AnalyticsPoint {
+  period: string;
+  readingUsers: number;
+  loggedInUsers: number;
+}
+
+export interface AnalyticsTopBook {
+  bookId: string;
+  title: string;
+  readers: number;
+  sessions: number;
+  minutes: number;
+}
+
+export interface DashboardAnalytics {
+  granularity: AnalyticsGranularity;
+  from: string;
+  to: string;
+  totals: {
+    readingUsers: number;
+    loggedInUsers: number;
+    newSignups: number;
+  };
+  series: AnalyticsPoint[];
+  topBooks: AnalyticsTopBook[];
 }
 
 export interface RecentActivity {

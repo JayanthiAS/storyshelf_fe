@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, OnDestroy, signal, ElementRef, ViewChild } from '@angular/core';
+import { Component, computed, inject, OnInit, OnDestroy, signal, ElementRef, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -25,21 +25,41 @@ function isPdfBytes(buffer: ArrayBuffer): boolean {
   imports: [CommonModule, RouterLink, BookCardComponent, SpinnerComponent, EmptyStateComponent, GuruCardComponent],
   template: `
     <h2 class="mb-4">Continue Reading</h2>
-    @if (loading()) { <app-spinner /> } @else if (!progress().length) {
-      <app-empty-state message="No books in progress" actionLabel="Browse Books" (action)="router.navigate(['/books'])" />
-    } @else {
-      <div class="row g-3">
-        @for (p of progress(); track p.bookId) {
-          <div class="col-md-4">
-            <app-guru-card>
-              <h6>{{ getBookTitle(p) }}</h6>
-              <div class="progress mb-2"><div class="progress-bar" [style.width.%]="p.percentComplete"></div></div>
-              <small class="text-muted">Page {{ p.currentPage }} / {{ p.totalPages }}</small>
-              <a [routerLink]="['/books', getBookId(p), 'read']" class="btn btn-primary btn-sm mt-2">Continue</a>
-            </app-guru-card>
-          </div>
-        }
-      </div>
+    @if (loading()) { <app-spinner /> } @else {
+      @if (!inProgress().length) {
+        <app-empty-state message="No books in progress" actionLabel="Browse Books" (action)="router.navigate(['/books'])" />
+      } @else {
+        <div class="row g-3">
+          @for (p of inProgress(); track getBookId(p)) {
+            <div class="col-md-4">
+              <app-guru-card>
+                <h6>{{ getBookTitle(p) }}</h6>
+                <div class="progress mb-2"><div class="progress-bar" [style.width.%]="p.percentComplete"></div></div>
+                <small class="text-muted">Page {{ p.currentPage }} / {{ p.totalPages }}</small>
+                <a [routerLink]="['/books', getBookId(p), 'read']" class="btn btn-primary btn-sm mt-2">Continue</a>
+              </app-guru-card>
+            </div>
+          }
+        </div>
+      }
+
+      @if (completed().length) {
+        <h2 class="mt-5 mb-4">Completed</h2>
+        <div class="row g-3">
+          @for (p of completed(); track getBookId(p)) {
+            <div class="col-md-4">
+              <app-guru-card>
+                <h6>{{ getBookTitle(p) }}</h6>
+                <div class="progress mb-2"><div class="progress-bar bg-success" style="width: 100%"></div></div>
+                <small class="text-muted">
+                  Finished{{ p.completedAt ? ' on ' + (p.completedAt | date:'mediumDate') : '' }}
+                </small>
+                <a [routerLink]="['/books', getBookId(p), 'read']" class="btn btn-outline-primary btn-sm mt-2">Read again</a>
+              </app-guru-card>
+            </div>
+          }
+        </div>
+      }
     }
   `,
 })
@@ -48,9 +68,15 @@ export class ReadingListComponent implements OnInit {
   router = inject(Router);
   loading = signal(true);
   progress = signal<ReadingProgress[]>([]);
+  inProgress = computed(() => this.progress().filter((p) => !this.isCompleted(p)));
+  completed = computed(() => this.progress().filter((p) => this.isCompleted(p)));
 
   ngOnInit(): void {
     this.readingService.getProgress().subscribe((r) => { this.progress.set(r); this.loading.set(false); });
+  }
+
+  private isCompleted(p: ReadingProgress): boolean {
+    return !!p.isCompleted || (p.totalPages > 0 && p.currentPage >= p.totalPages);
   }
 
   getBookTitle(p: ReadingProgress): string {
@@ -142,8 +168,12 @@ export class BookReaderComponent implements OnInit, OnDestroy {
   private fileMimeType = '';
   private fileUrl = '';
   private sessionStart = Date.now();
+  private sessionId: string | null = null;
+  private sessionReady?: Promise<string | null>;
+  private sessionTimer?: ReturnType<typeof setInterval>;
   private pdfDoc: pdfjsLib.PDFDocumentProxy | null = null;
   private saveTimer?: ReturnType<typeof setTimeout>;
+  private readonly onPageHide = () => this.checkpointSession();
 
   ngOnInit(): void {
     this.bookId = this.route.snapshot.paramMap.get('id')!;
@@ -165,7 +195,11 @@ export class BookReaderComponent implements OnInit, OnDestroy {
         }
 
         this.readingService.getBookProgress(this.bookId).subscribe({
-          next: (p) => { this.currentPage.set(p.currentPage || 1); this.totalPages.set(p.totalPages || 1); },
+          next: (p) => {
+            if (p.isCompleted || !p.currentPage) return;
+            this.currentPage.set(p.currentPage);
+            if (this.pdfDoc && this.pdfContainer) this.renderPdfPage(this.clampPage(p.currentPage));
+          },
           error: () => {},
         });
         this.loadContent();
@@ -189,16 +223,42 @@ export class BookReaderComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    clearInterval(this.sessionTimer);
+    window.removeEventListener('pagehide', this.onPageHide);
     this.saveProgress();
-    const duration = Math.floor((Date.now() - this.sessionStart) / 1000);
-    if (duration > 5) {
+    this.checkpointSession();
+  }
+
+  private beginSession(): void {
+    if (!this.auth.isAuthenticated() || this.sessionReady) return;
+    this.sessionStart = Date.now();
+    const startedAt = new Date(this.sessionStart).toISOString();
+    this.sessionReady = new Promise((resolve) => {
       this.readingService.logSession({
         bookId: this.bookId,
-        durationSeconds: duration,
-        startedAt: new Date(this.sessionStart).toISOString(),
-        endedAt: new Date().toISOString(),
-      }).subscribe();
-    }
+        durationSeconds: 0,
+        startedAt,
+        endedAt: startedAt,
+      }).subscribe({
+        next: (session) => {
+          this.sessionId = session._id;
+          resolve(session._id);
+        },
+        error: () => resolve(null),
+      });
+    });
+    this.sessionTimer = setInterval(() => this.checkpointSession(), 60_000);
+    window.addEventListener('pagehide', this.onPageHide);
+  }
+
+  private checkpointSession(): void {
+    if (!this.sessionReady || !this.bookId) return;
+    const durationSeconds = Math.floor((Date.now() - this.sessionStart) / 1000);
+    const endedAt = new Date().toISOString();
+    void this.sessionReady.then((id) => {
+      if (!id) return;
+      this.readingService.updateSession(id, { durationSeconds, endedAt }).subscribe();
+    });
   }
 
   private loadContent(): void {
@@ -212,6 +272,7 @@ export class BookReaderComponent implements OnInit, OnDestroy {
             await this.renderEpub(bytes);
           }
           this.loading.set(false);
+          this.beginSession();
         } catch (err) {
           this.error.set(err instanceof Error ? err.message : 'Unable to open this book.');
           this.loading.set(false);
@@ -270,7 +331,11 @@ export class BookReaderComponent implements OnInit, OnDestroy {
   private async renderPdf(buffer: ArrayBuffer): Promise<void> {
     this.pdfDoc = await pdfjsLib.getDocument({ data: buffer.slice(0) }).promise;
     this.totalPages.set(this.pdfDoc.numPages);
-    setTimeout(() => this.renderPdfPage(this.currentPage()), 50);
+    setTimeout(() => this.renderPdfPage(this.clampPage(this.currentPage())), 50);
+  }
+
+  private clampPage(page: number): number {
+    return Math.min(Math.max(page, 1), this.pdfDoc?.numPages ?? 1);
   }
 
   private async renderPdfPage(pageNum: number): Promise<void> {
@@ -303,13 +368,16 @@ export class BookReaderComponent implements OnInit, OnDestroy {
   }
 
   private saveProgress(): void {
-    const total = this.totalPages();
-    const current = this.currentPage();
-    if (!total) return;
-    this.readingService.saveProgress(this.bookId, {
-      currentPage: current,
-      totalPages: total,
-    }).subscribe();
+    if (!this.bookId || this.error()) return;
+    if (this.isPdf) {
+      if (!this.pdfDoc) return;
+      this.readingService.saveProgress(this.bookId, {
+        currentPage: this.currentPage(),
+        totalPages: this.pdfDoc.numPages,
+      }).subscribe();
+      return;
+    }
+    this.readingService.saveProgress(this.bookId, { currentPage: 0, totalPages: 0 }).subscribe();
   }
 
   close(): void {

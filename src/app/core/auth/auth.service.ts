@@ -43,7 +43,7 @@ export class AuthService {
   setSession(response: AuthResponse): void {
     this.accessToken.set(response.accessToken);
     this.refreshTokenValue.set(response.refreshToken);
-    this.currentUser.set(response.user);
+    if (response.user) this.currentUser.set(response.user);
     sessionStorage.setItem(REFRESH_KEY, response.refreshToken);
     this.scheduleRefresh(response.accessToken);
   }
