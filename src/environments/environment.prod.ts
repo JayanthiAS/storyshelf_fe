@@ -1,7 +1,7 @@
 export const environment = {
   production: true,
   apiUrl: 'https://storyshelf-api-7eru.onrender.com/api/v1',
-  uploadsUrl: '/uploads',
+  uploadsUrl: 'https://storyshelf-api-7eru.onrender.com/uploads',
   stripePublishableKey: '',
   tokenRefreshSkewMs: 60_000,
   notificationPollMs: 60_000,
