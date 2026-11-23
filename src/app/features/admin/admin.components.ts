@@ -735,19 +735,60 @@ export class AdminTaxonomyComponent implements OnInit, OnDestroy {
               </select>
             </div>
             <div class="mb-3 form-check"><input type="checkbox" class="form-check-input" formControlName="unlocksLockedBooks" id="unlock" /><label for="unlock">Unlocks locked books</label></div>
-            <div class="mb-3"><label class="form-label">Features (comma separated)</label><input class="form-control" formControlName="featuresStr" /></div>
-            <button class="btn btn-primary w-100">Create</button>
+            <div class="mb-3">
+              <label class="form-label">Features</label>
+              <ul class="list-group mb-2">
+                @for (feature of newFeatures(); track feature) {
+                  <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <span>{{ feature }}</span>
+                    <button type="button" class="btn btn-sm btn-outline-danger" (click)="removeDraftFeature(feature)">Delete</button>
+                  </li>
+                } @empty {
+                  <li class="list-group-item text-muted">No features yet</li>
+                }
+              </ul>
+              <div class="input-group">
+                <input class="form-control" placeholder="Add a feature" [value]="newFeatureDraft()" (input)="newFeatureDraft.set(inputValue($event))" (keydown.enter)="$event.preventDefault(); addDraftFeature()" />
+                <button type="button" class="btn btn-outline-primary" (click)="addDraftFeature()">Add</button>
+              </div>
+            </div>
+            <button class="btn btn-primary w-100" [disabled]="form.invalid">Create</button>
           </form>
         </app-guru-card>
       </div>
       <div class="col-md-8">
         <app-guru-card title="Plans">
-          <table class="table"><thead><tr><th>Name</th><th>Price</th><th>Active</th><th></th></tr></thead>
-            <tbody>@for (p of plans(); track p._id) {
-              <tr><td>{{ p.name }}</td><td>{{ p.price | currency:(p.currency | uppercase) }}</td><td>{{ p.isActive }}</td>
-                <td>@if (!p.isDefault) { <button class="btn btn-sm btn-outline-danger" (click)="remove(p._id)">Deactivate</button> }</td></tr>
-            }</tbody>
-          </table>
+          @if (loading()) { <app-spinner /> } @else {
+            @for (p of plans(); track p._id) {
+              <div class="border rounded p-3 mb-3">
+                <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                  <div>
+                    <h5 class="mb-1">{{ p.name }}</h5>
+                    <div class="text-muted">{{ p.price | currency:(p.currency | uppercase) }} / {{ p.interval }} · {{ p.isActive ? 'Active' : 'Inactive' }}</div>
+                  </div>
+                  @if (!p.isDefault) {
+                    <button type="button" class="btn btn-sm btn-outline-danger" (click)="remove(p._id)">Deactivate</button>
+                  }
+                </div>
+                <ul class="list-group mb-2">
+                  @for (feature of planFeatures(p); track feature) {
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                      <span>{{ feature }}</span>
+                      <button type="button" class="btn btn-sm btn-outline-danger" [disabled]="savingId() === p._id" (click)="removeFeature(p, feature)">Delete</button>
+                    </li>
+                  } @empty {
+                    <li class="list-group-item text-muted">No features</li>
+                  }
+                </ul>
+                <div class="input-group">
+                  <input class="form-control" placeholder="Add a feature" [value]="draftFor(p._id)" (input)="setDraft(p._id, inputValue($event))" (keydown.enter)="addFeature(p)" />
+                  <button type="button" class="btn btn-outline-primary" [disabled]="savingId() === p._id" (click)="addFeature(p)">Add</button>
+                </div>
+              </div>
+            } @empty {
+              <p class="text-muted mb-0">No plans yet</p>
+            }
+          }
         </app-guru-card>
       </div>
     </div>
@@ -758,18 +799,96 @@ export class AdminPlansComponent implements OnInit {
   private fb = inject(FormBuilder);
   private toast = inject(ToastService);
   plans = signal<SubscriptionPlan[]>([]);
+  loading = signal(true);
+  savingId = signal<string | null>(null);
+  featureDrafts = signal<Record<string, string>>({});
+  newFeatures = signal<string[]>([]);
+  newFeatureDraft = signal('');
   form = this.fb.group({
     name: ['', Validators.required], price: [0], interval: ['month'],
-    unlocksLockedBooks: [true], featuresStr: [''],
+    unlocksLockedBooks: [true],
   });
   ngOnInit(): void { this.load(); }
-  load(): void { this.service.adminListPlans().subscribe((r) => this.plans.set(r.items)); }
+  load(): void {
+    this.loading.set(true);
+    this.service.adminListPlans().subscribe({
+      next: (r) => {
+        this.plans.set(r.items);
+        this.loading.set(false);
+      },
+      error: () => this.loading.set(false),
+    });
+  }
+  planFeatures(plan: SubscriptionPlan): string[] {
+    return plan.features ?? [];
+  }
+  draftFor(id: string): string {
+    return this.featureDrafts()[id] ?? '';
+  }
+  setDraft(id: string, value: string): void {
+    this.featureDrafts.update((drafts) => ({ ...drafts, [id]: value }));
+  }
+  inputValue(event: Event): string {
+    return (event.target as HTMLInputElement).value;
+  }
+  addDraftFeature(): void {
+    const text = this.newFeatureDraft().trim();
+    if (!text) return;
+    if (this.newFeatures().includes(text)) {
+      this.toast.error('Feature already added');
+      return;
+    }
+    this.newFeatures.update((features) => [...features, text]);
+    this.newFeatureDraft.set('');
+  }
+  removeDraftFeature(feature: string): void {
+    this.newFeatures.update((features) => features.filter((item) => item !== feature));
+  }
+  addFeature(plan: SubscriptionPlan): void {
+    const text = this.draftFor(plan._id).trim();
+    if (!text) return;
+    const current = this.planFeatures(plan);
+    if (current.includes(text)) {
+      this.toast.error('Feature already exists');
+      return;
+    }
+    this.saveFeatures(plan, [...current, text], 'Feature added');
+  }
+  removeFeature(plan: SubscriptionPlan, feature: string): void {
+    this.saveFeatures(
+      plan,
+      this.planFeatures(plan).filter((item) => item !== feature),
+      'Feature removed',
+    );
+  }
+  private saveFeatures(plan: SubscriptionPlan, features: string[], message: string): void {
+    this.savingId.set(plan._id);
+    this.service.adminUpdatePlan(plan._id, { features }).subscribe({
+      next: () => {
+        this.toast.success(message);
+        this.setDraft(plan._id, '');
+        this.savingId.set(null);
+        this.load();
+      },
+      error: () => {
+        this.toast.error('Could not update features');
+        this.savingId.set(null);
+      },
+    });
+  }
   create(): void {
+    if (this.form.invalid) return;
     const v = this.form.getRawValue();
     this.service.adminCreatePlan({
       name: v.name!, price: v.price!, interval: v.interval as PlanInterval,
-      unlocksLockedBooks: v.unlocksLockedBooks!, features: v.featuresStr!.split(',').map((s) => s.trim()).filter(Boolean),
-    }).subscribe(() => { this.toast.success('Plan created'); this.load(); });
+      unlocksLockedBooks: v.unlocksLockedBooks!, features: this.newFeatures(),
+    }).subscribe(() => {
+      this.toast.success('Plan created');
+      this.form.reset({ name: '', price: 0, interval: 'month', unlocksLockedBooks: true });
+      this.newFeatures.set([]);
+      this.newFeatureDraft.set('');
+      this.load();
+    });
   }
   remove(id: string): void { this.service.adminDeletePlan(id).subscribe(() => this.load()); }
 }
