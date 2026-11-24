@@ -58,17 +58,56 @@ export interface AnalyticsTopBook {
   minutes: number;
 }
 
+export interface AnalyticsComparison {
+  current: number;
+  previous: number;
+  change: number;
+}
+
+export interface AnalyticsGenre {
+  genreId: string;
+  name: string;
+  readers: number;
+  sessions: number;
+}
+
 export interface DashboardAnalytics {
   granularity: AnalyticsGranularity;
   from: string;
   to: string;
+  previousFrom: string;
+  previousTo: string;
   totals: {
     readingUsers: number;
     loggedInUsers: number;
     newSignups: number;
+    revenueCents: number;
+    failedPayments: number;
+    completionRate: number;
+  };
+  previousTotals: DashboardAnalytics['totals'];
+  comparison: {
+    readingUsers: AnalyticsComparison;
+    loggedInUsers: AnalyticsComparison;
+    newSignups: AnalyticsComparison;
+    revenueCents: AnalyticsComparison;
+    failedPayments: AnalyticsComparison;
+    completionRate: AnalyticsComparison;
   };
   series: AnalyticsPoint[];
   topBooks: AnalyticsTopBook[];
+  genres: AnalyticsGenre[];
+  payments: {
+    succeededCount: number;
+    revenueCents: number;
+    failedCount: number;
+    failedAmountCents: number;
+  };
+  completion: {
+    activeReaders: number;
+    completed: number;
+    rate: number;
+  };
 }
 
 export interface RecentActivity {

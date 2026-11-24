@@ -10,7 +10,7 @@ import { AuthService } from '../../core/auth/auth.service';
 import { GuruCardComponent, SpinnerComponent, PaginationComponent, EmptyStateComponent, BreadcrumbComponent } from '../../shared/layout/layout.components';
 import { FileUploadComponent } from '../../shared/components/shared.components';
 import { ToastService } from '../../shared/services/toast.service';
-import { DashboardStats, DashboardAnalytics, AnalyticsGranularity, AnalyticsPoint, RecentActivity, Notification, BroadcastNotificationDto } from '../../core/models/notification.model';
+import { DashboardStats, DashboardAnalytics, AnalyticsGranularity, AnalyticsPoint, AnalyticsComparison, RecentActivity, Notification, BroadcastNotificationDto } from '../../core/models/notification.model';
 import { User } from '../../core/models/user.model';
 import { Book, Author, Genre, Series, CreateBookDto } from '../../core/models/book.model';
 import { SubscriptionPlan } from '../../core/models/subscription-plan.model';
@@ -39,16 +39,20 @@ import { formatDate, formatBytes, BOOK_FILE_TYPES, IMAGE_FILE_TYPES, getEntityId
               <button type="button" class="btn" [class.btn-primary]="granularity() === option" [class.btn-outline-primary]="granularity() !== option" (click)="setGranularity(option)">{{ option }}</button>
             }
           </div>
-          <div class="d-flex gap-3 small">
-            <span><i class="d-inline-block rounded" style="width:10px;height:10px;background:#4099ff"></i> Reading users</span>
-            <span><i class="d-inline-block rounded" style="width:10px;height:10px;background:#2ed8b6"></i> Logged-in users</span>
-          </div>
+          <button type="button" class="btn btn-outline-secondary btn-sm" (click)="exportCsv()" [disabled]="exporting() || !analytics()">{{ exporting() ? 'Exporting...' : 'Export CSV' }}</button>
+        </div>
+        <div class="d-flex gap-3 small mb-3">
+          <span><i class="d-inline-block rounded" style="width:10px;height:10px;background:#4099ff"></i> Reading users</span>
+          <span><i class="d-inline-block rounded" style="width:10px;height:10px;background:#2ed8b6"></i> Logged-in users</span>
         </div>
         @if (analytics()) {
           <div class="row g-2 mb-3">
-            <div class="col-md-4"><div class="border rounded p-2"><div class="text-muted small">Reading users</div><strong>{{ analytics()!.totals.readingUsers }}</strong></div></div>
-            <div class="col-md-4"><div class="border rounded p-2"><div class="text-muted small">Logged-in users</div><strong>{{ analytics()!.totals.loggedInUsers }}</strong></div></div>
-            <div class="col-md-4"><div class="border rounded p-2"><div class="text-muted small">New signups</div><strong>{{ analytics()!.totals.newSignups }}</strong></div></div>
+            <div class="col-md-4"><div class="border rounded p-2"><div class="text-muted small">Reading users</div><strong>{{ analytics()!.totals.readingUsers }}</strong><div class="small text-muted">{{ changeText(analytics()!.comparison.readingUsers) }}</div></div></div>
+            <div class="col-md-4"><div class="border rounded p-2"><div class="text-muted small">Logged-in users</div><strong>{{ analytics()!.totals.loggedInUsers }}</strong><div class="small text-muted">{{ changeText(analytics()!.comparison.loggedInUsers) }}</div></div></div>
+            <div class="col-md-4"><div class="border rounded p-2"><div class="text-muted small">New signups</div><strong>{{ analytics()!.totals.newSignups }}</strong><div class="small text-muted">{{ changeText(analytics()!.comparison.newSignups) }}</div></div></div>
+            <div class="col-md-4"><div class="border rounded p-2"><div class="text-muted small">Revenue</div><strong>{{ analytics()!.payments.revenueCents / 100 | currency:'USD' }}</strong><div class="small text-muted">{{ analytics()!.payments.succeededCount }} paid · {{ moneyChange(analytics()!.comparison.revenueCents.change) }}</div></div></div>
+            <div class="col-md-4"><div class="border rounded p-2"><div class="text-muted small">Failed payments</div><strong>{{ analytics()!.payments.failedCount }}</strong><div class="small text-muted">{{ analytics()!.payments.failedAmountCents / 100 | currency:'USD' }} due · {{ changeText(analytics()!.comparison.failedPayments) }}</div></div></div>
+            <div class="col-md-4"><div class="border rounded p-2"><div class="text-muted small">Completion</div><strong>{{ analytics()!.completion.rate * 100 | number:'1.0-0' }}%</strong><div class="small text-muted">{{ analytics()!.completion.completed }} of {{ analytics()!.completion.activeReaders }} · {{ changeText(analytics()!.comparison.completionRate, true) }}</div></div></div>
           </div>
           <div class="overflow-auto">
             <svg [attr.viewBox]="'0 0 ' + chartWidth() + ' 200'" [attr.width]="chartWidth()" height="200" role="img" aria-label="Reading users and logged-in users">
@@ -65,7 +69,14 @@ import { formatDate, formatBytes, BOOK_FILE_TYPES, IMAGE_FILE_TYPES, getEntityId
               }
             </svg>
           </div>
-          <p class="text-muted small mt-2 mb-0">Login counts start from this release. Earlier sign-ins were not stored.</p>
+          <p class="text-muted small mt-2 mb-3">Login counts start from this release. Earlier sign-ins were not stored.</p>
+          <h6>Genres</h6>
+          @for (genre of analytics()!.genres; track genre.genreId) {
+            <div class="mb-2">
+              <div class="d-flex justify-content-between small"><span>{{ genre.name }}</span><span>{{ genre.readers }} readers · {{ genre.sessions }} sessions</span></div>
+              <div class="progress" style="height: 8px"><div class="progress-bar" [style.width.%]="genreWidth(genre.readers)"></div></div>
+            </div>
+          } @empty { <p class="text-muted small">No genre activity in this range</p> }
         } @else if (analyticsLoading()) {
           <app-spinner />
         }
@@ -99,6 +110,7 @@ export class AdminDashboardComponent implements OnInit {
   analytics = signal<DashboardAnalytics | null>(null);
   granularity = signal<AnalyticsGranularity>('month');
   granularities: AnalyticsGranularity[] = ['day', 'month', 'year'];
+  exporting = signal(false);
 
   ngOnInit(): void {
     this.dashboard.getStats().subscribe({
@@ -142,6 +154,39 @@ export class AdminDashboardComponent implements OnInit {
         label: this.granularity() === 'day' ? point.period.slice(5) : point.period,
         showLabel: index % every === 0,
       };
+    });
+  }
+
+  changeText(value: AnalyticsComparison, rate = false): string {
+    const amount = rate ? Math.round(value.change * 100) : value.change;
+    const sign = amount > 0 ? '+' : '';
+    return rate ? `${sign}${amount} pts vs previous` : `${sign}${amount} vs previous`;
+  }
+
+  moneyChange(cents: number): string {
+    const sign = cents > 0 ? '+' : cents < 0 ? '-' : '';
+    return `${sign}$${Math.abs(cents / 100).toFixed(2)} vs previous`;
+  }
+
+  genreWidth(readers: number): number {
+    const max = Math.max(1, ...(this.analytics()?.genres ?? []).map((genre) => genre.readers));
+    return Math.round((readers / max) * 100);
+  }
+
+  exportCsv(): void {
+    if (this.exporting()) return;
+    this.exporting.set(true);
+    this.dashboard.exportAnalytics(this.granularity()).subscribe({
+      next: (blob) => {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `storyshelf-analytics-${this.granularity()}-${new Date().toISOString()}.csv`;
+        link.click();
+        URL.revokeObjectURL(url);
+        this.exporting.set(false);
+      },
+      error: () => this.exporting.set(false),
     });
   }
 

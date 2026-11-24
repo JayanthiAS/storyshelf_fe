@@ -235,4 +235,8 @@ export class AdminDashboardService {
   getAnalytics(granularity: AnalyticsGranularity): Observable<DashboardAnalytics> {
     return this.api.get<DashboardAnalytics>('/admin/dashboard/analytics', { granularity });
   }
+
+  exportAnalytics(granularity: AnalyticsGranularity): Observable<Blob> {
+    return this.api.getBlob(`/admin/dashboard/analytics/export?granularity=${granularity}`);
+  }
 }
