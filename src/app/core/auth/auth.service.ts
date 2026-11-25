@@ -17,6 +17,7 @@ import { Role } from '../models/enums.model';
 import { environment } from '../../../environments/environment';
 
 const REFRESH_KEY = 'storyshelf_refresh_token';
+const GUEST_KEY = 'storyshelf_guest_token';
 const PENDING_EMAIL_KEY = 'storyshelf_pending_email';
 
 @Injectable({ providedIn: 'root' })
@@ -30,6 +31,7 @@ export class AuthService {
 
   isAuthenticated = computed(() => !!this.accessToken());
   isAdmin = computed(() => this.currentUser()?.role === Role.Admin);
+  isGuest = computed(() => this.currentUser()?.role === Role.Guest);
   isEmailVerified = computed(() => this.currentUser()?.isEmailVerified ?? false);
 
   getAccessToken(): string | null {
@@ -53,6 +55,7 @@ export class AuthService {
     this.refreshTokenValue.set(null);
     this.currentUser.set(null);
     sessionStorage.removeItem(REFRESH_KEY);
+    sessionStorage.removeItem(GUEST_KEY);
     sessionStorage.removeItem(PENDING_EMAIL_KEY);
     if (this.refreshTimer) clearTimeout(this.refreshTimer);
   }
@@ -73,12 +76,23 @@ export class AuthService {
   }
 
   initFromStorage(): Promise<void> {
+    const guestToken = sessionStorage.getItem(GUEST_KEY);
+    if (guestToken && this.restoreGuestToken(guestToken)) {
+      return Promise.resolve();
+    }
+    sessionStorage.removeItem(GUEST_KEY);
     const stored = sessionStorage.getItem(REFRESH_KEY);
     if (!stored) return Promise.resolve();
     this.refreshTokenValue.set(stored);
     return firstValueFrom(this.refresh()).then(() => undefined).catch(() => {
       this.clearSession();
     });
+  }
+
+  loginAsGuest(): Observable<{ accessToken: string }> {
+    return this.api.post<{ accessToken: string }>('/auth/guest', {}).pipe(
+      tap((response) => this.applyGuestToken(response.accessToken)),
+    );
   }
 
   login(dto: LoginDto): Observable<AuthResponse> {
@@ -153,5 +167,36 @@ export class AuthService {
 
   fetchMe(): Observable<User> {
     return this.api.get<User>('/auth/me').pipe(tap((u) => this.currentUser.set(u)));
+  }
+
+  private restoreGuestToken(token: string): boolean {
+    try {
+      const decoded = jwtDecode<JwtPayload>(token);
+      if (decoded.role !== Role.Guest || decoded.exp * 1000 <= Date.now()) return false;
+      this.applyGuestToken(token);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private applyGuestToken(token: string): void {
+    const decoded = jwtDecode<JwtPayload>(token);
+    this.accessToken.set(token);
+    this.refreshTokenValue.set(null);
+    sessionStorage.removeItem(REFRESH_KEY);
+    sessionStorage.setItem(GUEST_KEY, token);
+    this.currentUser.set({
+      _id: decoded.sub,
+      email: '',
+      firstName: '',
+      lastName: '',
+      role: Role.Guest,
+      isSuperAdmin: false,
+      isEmailVerified: false,
+      isActive: true,
+      createdAt: '',
+      updatedAt: '',
+    });
   }
 }

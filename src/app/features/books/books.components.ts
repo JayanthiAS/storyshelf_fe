@@ -103,7 +103,11 @@ export class BookListComponent implements OnInit {
           }
           <div class="d-flex gap-2 mt-3 flex-wrap">
             @if (canRead()) {
-              <a [routerLink]="['/books', book()!._id, 'read']" class="btn btn-primary">Read Now</a>
+              @if (!auth.isAuthenticated()) {
+                <button type="button" class="btn btn-primary" (click)="readAsGuest()">Read Now</button>
+              } @else {
+                <a [routerLink]="['/books', book()!._id, 'read']" class="btn btn-primary">Read Now</a>
+              }
             } @else if (needsSubscription()) {
               <div class="alert alert-warning w-100 mb-0">
                 <i class="icofont icofont-lock"></i>
@@ -117,7 +121,7 @@ export class BookListComponent implements OnInit {
             } @else if (accessError()) {
               <div class="alert alert-warning w-100 mb-0">{{ accessError() }}</div>
             }
-            @if (auth.isAuthenticated() && !isComingSoon) {
+            @if (auth.isAuthenticated() && !auth.isGuest() && !isComingSoon) {
               <button class="btn btn-outline-danger" (click)="toggleLike()">{{ liked() ? 'Unlike' : 'Like' }}</button>
             }
           </div>
@@ -128,6 +132,7 @@ export class BookListComponent implements OnInit {
 })
 export class BookDetailComponent implements OnInit {
   private route = inject(ActivatedRoute);
+  private router = inject(Router);
   private bookService = inject(BookService);
   private userService = inject(UserService);
   private subscriptionService = inject(SubscriptionService);
@@ -155,10 +160,18 @@ export class BookDetailComponent implements OnInit {
     return !!b && !this.isComingSoon && !this.accessError() && !this.needsSubscription() && !!b.fileUrl;
   }
 
+  readAsGuest(): void {
+    const id = this.book()?._id;
+    if (!id) return;
+    this.auth.loginAsGuest().subscribe({
+      next: () => this.router.navigate(['/books', id, 'read']),
+    });
+  }
+
   needsSubscription(): boolean {
     const b = this.book();
     if (!b?.isLocked) return false;
-    if (!this.auth.isAuthenticated()) return true;
+    if (!this.auth.isAuthenticated() || this.auth.isGuest()) return true;
     return this.subscriptionChecked() && !this.hasUnlock();
   }
 
@@ -173,7 +186,7 @@ export class BookDetailComponent implements OnInit {
       error: () => this.loading.set(false),
     });
     this.bookService.getPreview(id).subscribe((p) => this.preview.set(p.shortStory || ''));
-    if (this.auth.isAuthenticated()) {
+    if (this.auth.isAuthenticated() && !this.auth.isGuest()) {
       this.userService.getLikes().subscribe((r) => this.liked.set(r.items.some((x) => x._id === id)));
       this.subscriptionService.getMySubscription().subscribe({
         next: (sub) => {

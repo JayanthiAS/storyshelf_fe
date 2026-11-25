@@ -26,6 +26,7 @@ import { environment } from '../../../environments/environment';
         @if (error()) { <div class="alert alert-danger">{{ error() }}</div> }
         <button class="btn btn-primary w-100" [disabled]="loading() || form.invalid">Sign In</button>
       </form>
+      <button type="button" class="btn btn-outline-secondary w-100 mt-2" [disabled]="loading()" (click)="continueAsGuest()">Continue as guest</button>
       <div class="mt-3 text-center">
         <a routerLink="/forgot-password">Forgot password?</a> · <a routerLink="/register">Create account</a>
       </div>
@@ -56,6 +57,21 @@ export class LoginComponent {
       },
       error: (e) => {
         this.error.set(e.error?.message || 'Invalid credentials');
+        this.loading.set(false);
+      },
+    });
+  }
+
+  continueAsGuest(): void {
+    this.loading.set(true);
+    this.error.set('');
+    this.auth.loginAsGuest().subscribe({
+      next: () => {
+        const returnUrl = String(this.route.snapshot.queryParams['returnUrl'] || '');
+        this.router.navigateByUrl(returnUrl.includes('/read') ? returnUrl : '/');
+      },
+      error: () => {
+        this.error.set('Unable to start a guest session');
         this.loading.set(false);
       },
     });

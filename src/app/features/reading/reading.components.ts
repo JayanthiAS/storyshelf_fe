@@ -230,7 +230,7 @@ export class BookReaderComponent implements OnInit, OnDestroy {
   }
 
   private beginSession(): void {
-    if (!this.auth.isAuthenticated() || this.sessionReady) return;
+    if (!this.auth.isAuthenticated() || this.auth.isGuest() || this.sessionReady) return;
     this.sessionStart = Date.now();
     const startedAt = new Date(this.sessionStart).toISOString();
     this.sessionReady = new Promise((resolve) => {
@@ -368,7 +368,7 @@ export class BookReaderComponent implements OnInit, OnDestroy {
   }
 
   private saveProgress(): void {
-    if (!this.bookId || this.error()) return;
+    if (!this.bookId || this.error() || this.auth.isGuest()) return;
     if (this.isPdf) {
       if (!this.pdfDoc) return;
       this.readingService.saveProgress(this.bookId, {

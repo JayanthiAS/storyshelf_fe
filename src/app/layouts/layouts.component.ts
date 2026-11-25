@@ -27,7 +27,7 @@ import { environment } from '../../environments/environment';
         <a routerLink="/authors" class="btn btn-link">Authors</a>
         <a routerLink="/genres" class="btn btn-link">Genres</a>
         <a routerLink="/pricing" class="btn btn-link">Pricing</a>
-        @if (auth.isAuthenticated()) {
+        @if (auth.isAuthenticated() && !auth.isGuest()) {
           <a routerLink="/reading" class="btn btn-link">Reading</a>
           <a routerLink="/notifications" class="btn btn-link position-relative">
             <i class="icofont icofont-notification"></i>
@@ -36,6 +36,9 @@ import { environment } from '../../environments/environment';
             }
           </a>
           <a routerLink="/account" class="btn btn-outline-primary btn-sm">Account</a>
+          <button class="btn btn-link btn-sm" (click)="logout()">Logout</button>
+        } @else if (auth.isGuest()) {
+          <span class="text-muted small">Guest</span>
           <button class="btn btn-link btn-sm" (click)="logout()">Logout</button>
         } @else {
           <a routerLink="/login" class="btn btn-outline-primary btn-sm">Login</a>
@@ -59,7 +62,7 @@ export class PublicLayoutComponent implements OnInit, OnDestroy {
   private pollTimer?: ReturnType<typeof setInterval>;
 
   ngOnInit(): void {
-    if (this.auth.isAuthenticated()) this.pollNotifications();
+    if (this.auth.isAuthenticated() && !this.auth.isGuest()) this.pollNotifications();
   }
 
   ngOnDestroy(): void {

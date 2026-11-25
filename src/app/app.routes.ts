@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { authGuard, adminGuard, guestOnlyGuard, emailVerifiedGuard } from './core/guards/auth.guards';
+import { authGuard, adminGuard, guestOnlyGuard, emailVerifiedGuard, userGuard } from './core/guards/auth.guards';
 
 export const routes: Routes = [
   {
@@ -49,14 +49,14 @@ export const routes: Routes = [
       { path: 'series/:id', loadComponent: () => import('./features/catalog/catalog.components').then((m) => m.SeriesDetailComponent) },
       { path: 'search', loadComponent: () => import('./features/books/books.components').then((m) => m.SearchPageComponent) },
       { path: 'pricing', loadComponent: () => import('./features/subscription/subscription.components').then((m) => m.PricingComponent) },
-      { path: 'subscription/success', loadComponent: () => import('./features/subscription/subscription.components').then((m) => m.SubscriptionSuccessComponent), canActivate: [authGuard] },
+      { path: 'subscription/success', loadComponent: () => import('./features/subscription/subscription.components').then((m) => m.SubscriptionSuccessComponent), canActivate: [userGuard] },
       { path: 'subscription/cancel', loadComponent: () => import('./features/subscription/subscription.components').then((m) => m.SubscriptionCancelComponent) },
-      { path: 'account', loadComponent: () => import('./features/subscription/subscription.components').then((m) => m.AccountComponent), canActivate: [authGuard] },
-      { path: 'account/likes', loadComponent: () => import('./features/subscription/subscription.components').then((m) => m.LikesComponent), canActivate: [authGuard] },
-      { path: 'reading', loadComponent: () => import('./features/reading/reading.components').then((m) => m.ReadingListComponent), canActivate: [authGuard] },
-      { path: 'reading/history', loadComponent: () => import('./features/reading/reading.components').then((m) => m.ReadingHistoryComponent), canActivate: [authGuard] },
-      { path: 'notifications', loadComponent: () => import('./features/subscription/subscription.components').then((m) => m.NotificationsPageComponent), canActivate: [authGuard] },
-      { path: 'recommendations', loadComponent: () => import('./features/subscription/subscription.components').then((m) => m.RecommendationsPageComponent), canActivate: [authGuard] },
+      { path: 'account', loadComponent: () => import('./features/subscription/subscription.components').then((m) => m.AccountComponent), canActivate: [userGuard] },
+      { path: 'account/likes', loadComponent: () => import('./features/subscription/subscription.components').then((m) => m.LikesComponent), canActivate: [userGuard] },
+      { path: 'reading', loadComponent: () => import('./features/reading/reading.components').then((m) => m.ReadingListComponent), canActivate: [userGuard] },
+      { path: 'reading/history', loadComponent: () => import('./features/reading/reading.components').then((m) => m.ReadingHistoryComponent), canActivate: [userGuard] },
+      { path: 'notifications', loadComponent: () => import('./features/subscription/subscription.components').then((m) => m.NotificationsPageComponent), canActivate: [userGuard] },
+      { path: 'recommendations', loadComponent: () => import('./features/subscription/subscription.components').then((m) => m.RecommendationsPageComponent), canActivate: [userGuard] },
       { path: '403', loadComponent: () => import('./features/home/home.component').then((m) => m.ForbiddenComponent) },
     ],
   },

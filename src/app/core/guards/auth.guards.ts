@@ -28,6 +28,16 @@ export const guestOnlyGuard: CanActivateFn = () => {
 export const emailVerifiedGuard: CanActivateFn = () => {
   const auth = inject(AuthService);
   const router = inject(Router);
-  if (auth.isEmailVerified()) return true;
+  if (auth.isGuest() || auth.isEmailVerified()) return true;
   return router.createUrlTree(['/verify-email']);
+};
+
+export const userGuard: CanActivateFn = (_route, state) => {
+  const auth = inject(AuthService);
+  const router = inject(Router);
+  if (!auth.isAuthenticated()) {
+    return router.createUrlTree(['/login'], { queryParams: { returnUrl: state.url } });
+  }
+  if (auth.isGuest()) return router.createUrlTree(['/']);
+  return true;
 };
