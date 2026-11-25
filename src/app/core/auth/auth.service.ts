@@ -31,6 +31,7 @@ export class AuthService {
 
   isAuthenticated = computed(() => !!this.accessToken());
   isAdmin = computed(() => this.currentUser()?.role === Role.Admin);
+  isPublisher = computed(() => this.currentUser()?.role === Role.Publisher);
   isGuest = computed(() => this.currentUser()?.role === Role.Guest);
   isEmailVerified = computed(() => this.currentUser()?.isEmailVerified ?? false);
 
@@ -108,6 +109,25 @@ export class AuthService {
     );
   }
 
+  publisherLogin(dto: LoginDto): Observable<AuthResponse> {
+    return this.api.post<AuthResponse>('/auth/publisher/login', dto).pipe(
+      tap((r) => {
+        if (r.user.role !== Role.Publisher) throw new Error('Publisher access required');
+        this.setSession(r);
+      }),
+    );
+  }
+
+  acceptPublisherInvite(body: {
+    token: string;
+    password: string;
+    acceptTerms: boolean;
+  }): Observable<AuthResponse> {
+    return this.api.post<AuthResponse>('/auth/publisher/accept-invite', body).pipe(
+      tap((r) => this.setSession(r)),
+    );
+  }
+
   register(dto: RegisterDto): Observable<AuthResponse> {
     return this.api.post<AuthResponse>('/auth/register', dto).pipe(
       tap((r) => {
@@ -160,8 +180,9 @@ export class AuthService {
       ? this.api.post<void>('/auth/logout').pipe(catchError(() => of(undefined)))
       : of(undefined);
     return req.pipe(tap(() => {
+      const destination = this.isPublisher() ? '/publisher/login' : '/login';
       this.clearSession();
-      this.router.navigate(['/login']);
+      this.router.navigate([destination]);
     }));
   }
 

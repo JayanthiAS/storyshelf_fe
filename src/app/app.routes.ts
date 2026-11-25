@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { authGuard, adminGuard, guestOnlyGuard, emailVerifiedGuard, userGuard } from './core/guards/auth.guards';
+import { authGuard, adminGuard, guestOnlyGuard, emailVerifiedGuard, userGuard, publisherGuard } from './core/guards/auth.guards';
 
 export const routes: Routes = [
   {
@@ -10,6 +10,25 @@ export const routes: Routes = [
   {
     path: 'admin/login',
     loadComponent: () => import('./features/auth/auth.components').then((m) => m.AdminLoginComponent),
+    canActivate: [guestOnlyGuard],
+  },
+  {
+    path: 'publisher/login',
+    loadComponent: () => import('./features/publisher/publisher.components').then((m) => m.PublisherLoginComponent),
+    canActivate: [guestOnlyGuard],
+  },
+  {
+    path: 'publisher/accept-invite',
+    loadComponent: () => import('./features/publisher/publisher.components').then((m) => m.PublisherAcceptInviteComponent),
+  },
+  {
+    path: 'publisher/forgot-password',
+    loadComponent: () => import('./features/publisher/publisher.components').then((m) => m.PublisherForgotPasswordComponent),
+    canActivate: [guestOnlyGuard],
+  },
+  {
+    path: 'publisher/reset-password',
+    loadComponent: () => import('./features/publisher/publisher.components').then((m) => m.PublisherResetPasswordComponent),
     canActivate: [guestOnlyGuard],
   },
   {
@@ -79,6 +98,17 @@ export const routes: Routes = [
       { path: 'plans', loadComponent: () => import('./features/admin/admin.components').then((m) => m.AdminPlansComponent) },
       { path: 'subscriptions', loadComponent: () => import('./features/admin/admin.components').then((m) => m.AdminSubscriptionsComponent) },
       { path: 'notifications', loadComponent: () => import('./features/admin/admin.components').then((m) => m.AdminNotificationsComponent) },
+      { path: 'publishers/new', loadComponent: () => import('./features/publisher/admin-publisher.components').then((m) => m.AdminPublisherFormComponent) },
+      { path: 'publishers', loadComponent: () => import('./features/publisher/admin-publisher.components').then((m) => m.AdminPublishersComponent) },
+    ],
+  },
+  {
+    path: 'publisher',
+    loadComponent: () => import('./layouts/layouts.component').then((m) => m.PublisherLayoutComponent),
+    canActivate: [publisherGuard],
+    children: [
+      { path: '', loadComponent: () => import('./features/publisher/publisher.components').then((m) => m.PublisherHomeComponent) },
+      { path: 'settings', loadComponent: () => import('./features/publisher/publisher.components').then((m) => m.PublisherSettingsComponent) },
     ],
   },
   { path: '**', loadComponent: () => import('./features/home/home.component').then((m) => m.NotFoundComponent) },

@@ -22,7 +22,15 @@ export const guestOnlyGuard: CanActivateFn = () => {
   const router = inject(Router);
   if (!auth.isAuthenticated()) return true;
   if (auth.isAdmin()) return router.createUrlTree(['/admin']);
+  if (auth.isPublisher()) return router.createUrlTree(['/publisher']);
   return router.createUrlTree(['/']);
+};
+
+export const publisherGuard: CanActivateFn = () => {
+  const auth = inject(AuthService);
+  const router = inject(Router);
+  if (auth.isAuthenticated() && auth.currentUser()?.role === Role.Publisher) return true;
+  return router.createUrlTree(['/publisher/login']);
 };
 
 export const emailVerifiedGuard: CanActivateFn = () => {
@@ -38,6 +46,7 @@ export const userGuard: CanActivateFn = (_route, state) => {
   if (!auth.isAuthenticated()) {
     return router.createUrlTree(['/login'], { queryParams: { returnUrl: state.url } });
   }
+  if (auth.isPublisher()) return router.createUrlTree(['/publisher']);
   if (auth.isGuest()) return router.createUrlTree(['/']);
   return true;
 };

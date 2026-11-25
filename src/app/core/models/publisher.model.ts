@@ -1,0 +1,73 @@
+export interface PublisherUser {
+  _id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: string;
+}
+
+export interface PublisherOrganization {
+  _id: string;
+  legalName: string;
+  displayName: string;
+  slug: string;
+  country: string;
+  website: string | null;
+  logoUrl: string | null;
+  status: 'invited' | 'active' | 'suspended';
+  primaryContactEmail: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PublisherAgreement {
+  termsVersion: string;
+  termsText: string;
+  commercialModel: string;
+  acceptedAt: string | null;
+  territory: string[];
+  revenueShareBps: number | null;
+  currency: string | null;
+}
+
+export interface PublisherSession {
+  user: PublisherUser;
+  organization: PublisherOrganization | null;
+  membership: { orgRole: string; status: string } | null;
+  agreement: PublisherAgreement | null;
+  checklist: {
+    termsAccepted: boolean;
+    profileReady: boolean;
+    booksReady: boolean;
+  };
+}
+
+export interface PublisherInvitePreview {
+  email: string;
+  displayName: string;
+  legalName: string;
+  expiresAt: string;
+  termsVersion: string;
+  termsText: string;
+}
+
+export interface PublisherHouse extends PublisherOrganization {
+  agreement: PublisherAgreement | null;
+  pendingInvite: { email: string; expiresAt: string; createdAt: string } | null;
+}
+
+export interface CreatePublisherHouseDto {
+  legalName: string;
+  displayName: string;
+  country: string;
+  website?: string;
+  ownerEmail: string;
+  ownerFirstName: string;
+  ownerLastName: string;
+}
+
+export interface CreatePublisherHouseResult {
+  house: PublisherHouse;
+  inviteUrl: string;
+  expiresAt: string;
+}

@@ -1,6 +1,6 @@
 import { Component, inject, signal, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink, RouterOutlet, RouterLinkActive } from '@angular/router';
+import { Router, RouterLink, RouterOutlet, RouterLinkActive } from '@angular/router';
 import { AuthService } from '../core/auth/auth.service';
 import { NotificationService } from '../core/services/domain.service';
 import { SearchBarComponent } from '../shared/components/shared.components';
@@ -58,10 +58,15 @@ import { environment } from '../../environments/environment';
 export class PublicLayoutComponent implements OnInit, OnDestroy {
   auth = inject(AuthService);
   private notifications = inject(NotificationService);
+  private router = inject(Router);
   unreadCount = this.notifications.unreadCountState;
   private pollTimer?: ReturnType<typeof setInterval>;
 
   ngOnInit(): void {
+    if (this.auth.isPublisher()) {
+      this.router.navigate(['/publisher']);
+      return;
+    }
     if (this.auth.isAuthenticated() && !this.auth.isGuest()) this.pollNotifications();
   }
 
@@ -139,6 +144,7 @@ export class AdminLayoutComponent {
     { label: 'Plans', route: '/admin/plans', icon: 'icofont icofont-price' },
     { label: 'Subscriptions', route: '/admin/subscriptions', icon: 'icofont icofont-credit-card' },
     { label: 'Notifications', route: '/admin/notifications', icon: 'icofont icofont-notification' },
+    { label: 'Publishers', route: '/admin/publishers', icon: 'icofont icofont-building' },
   ];
 
   toggleSidebar(): void {
@@ -147,6 +153,61 @@ export class AdminLayoutComponent {
 
   logout(): void {
     this.auth.logout().subscribe(() => {});
+  }
+}
+
+@Component({
+  selector: 'app-publisher-layout',
+  standalone: true,
+  imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive, ToastContainerComponent],
+  template: `
+    <div class="d-flex">
+      <aside class="pcoded-navbar" [class.collapsed]="sidebarCollapsed()">
+        <div class="p-3 text-center border-bottom border-secondary">
+          <img src="assets/images/logo.png" alt="Storyshelf" height="28" />
+          @if (!sidebarCollapsed()) { <div class="text-white mt-2 small">Publisher Portal</div> }
+        </div>
+        <ul class="nav-menu list-unstyled mt-2">
+          @for (item of menuItems; track item.route) {
+            <li>
+              <a [routerLink]="item.route" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: item.route === '/publisher' }">
+                <i [class]="item.icon"></i>
+                @if (!sidebarCollapsed()) { {{ item.label }} }
+              </a>
+            </li>
+          }
+        </ul>
+      </aside>
+      <div class="pcoded-content flex-grow-1" [class.expanded]="sidebarCollapsed()">
+        <header class="pcoded-header d-flex justify-content-between align-items-center">
+          <button class="btn btn-link" (click)="toggleSidebar()"><i class="icofont icofont-navigation-menu"></i></button>
+          <div class="d-flex align-items-center gap-2">
+            <span class="text-muted">{{ auth.currentUser()?.email }}</span>
+            <button class="btn btn-sm btn-outline-danger" (click)="logout()">Logout</button>
+          </div>
+        </header>
+        <div class="p-4">
+          <router-outlet />
+        </div>
+      </div>
+    </div>
+    <app-toast-container />
+  `,
+})
+export class PublisherLayoutComponent {
+  auth = inject(AuthService);
+  sidebarCollapsed = signal(false);
+  menuItems: AdminMenuItem[] = [
+    { label: 'Home', route: '/publisher', icon: 'icofont icofont-home' },
+    { label: 'House settings', route: '/publisher/settings', icon: 'icofont icofont-building' },
+  ];
+
+  toggleSidebar(): void {
+    this.sidebarCollapsed.update((v) => !v);
+  }
+
+  logout(): void {
+    this.auth.logout().subscribe();
   }
 }
 
