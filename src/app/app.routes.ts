@@ -112,6 +112,7 @@ export const routes: Routes = [
       { path: 'books/new', loadComponent: () => import('./features/publisher/publisher-books.components').then((m) => m.PublisherBookFormComponent) },
       { path: 'books/:id', loadComponent: () => import('./features/publisher/publisher-books.components').then((m) => m.PublisherBookFormComponent) },
       { path: 'books', loadComponent: () => import('./features/publisher/publisher-books.components').then((m) => m.PublisherBooksComponent) },
+      { path: 'team', loadComponent: () => import('./features/publisher/publisher-team.components').then((m) => m.PublisherTeamComponent) },
       { path: 'settings', loadComponent: () => import('./features/publisher/publisher.components').then((m) => m.PublisherSettingsComponent) },
     ],
   },

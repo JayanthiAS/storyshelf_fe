@@ -201,6 +201,7 @@ export class PublisherLayoutComponent {
   menuItems: AdminMenuItem[] = [
     { label: 'Home', route: '/publisher', icon: 'icofont icofont-home' },
     { label: 'Books', route: '/publisher/books', icon: 'icofont icofont-book' },
+    { label: 'Team', route: '/publisher/team', icon: 'icofont icofont-users-social' },
     { label: 'House settings', route: '/publisher/settings', icon: 'icofont icofont-building' },
   ];
 

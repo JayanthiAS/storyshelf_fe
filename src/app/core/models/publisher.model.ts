@@ -46,6 +46,7 @@ export interface PublisherInvitePreview {
   email: string;
   displayName: string;
   legalName: string;
+  orgRole: 'owner' | 'editor' | 'viewer';
   expiresAt: string;
   termsVersion: string;
   termsText: string;
@@ -102,4 +103,27 @@ export interface CreatePublisherHouseResult {
   house: PublisherHouse;
   inviteUrl: string;
   expiresAt: string;
+}
+
+export interface PublisherStaffMember {
+  _id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  orgRole: 'owner' | 'editor' | 'viewer';
+  status: string;
+}
+
+export interface PublisherStaffInvite {
+  _id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  orgRole: 'editor' | 'viewer';
+  expiresAt: string;
+}
+
+export interface PublisherStaffList {
+  members: PublisherStaffMember[];
+  invites: PublisherStaffInvite[];
 }

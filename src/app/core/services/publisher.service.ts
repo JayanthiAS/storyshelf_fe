@@ -8,6 +8,7 @@ import {
   PublisherHouse,
   PublisherInvitePreview,
   PublisherSession,
+  PublisherStaffList,
 } from '../models/publisher.model';
 
 @Injectable({ providedIn: 'root' })
@@ -24,6 +25,35 @@ export class PublisherService {
 
   updateOrganization(body: { displayName?: string; country?: string; website?: string }) {
     return this.api.patch<PublisherSession>('/publisher/organization', body);
+  }
+
+  staff() {
+    return this.api.get<PublisherStaffList>('/publisher/staff');
+  }
+
+  inviteStaff(body: { email: string; firstName: string; lastName: string; orgRole: 'editor' | 'viewer' }) {
+    return this.api.post<{ inviteUrl: string; expiresAt: string; email: string; orgRole: string }>(
+      '/publisher/staff',
+      body,
+    );
+  }
+
+  updateStaffRole(id: string, orgRole: 'editor' | 'viewer') {
+    return this.api.patch<{ _id: string; orgRole: string }>(`/publisher/staff/${id}`, { orgRole });
+  }
+
+  removeStaff(id: string) {
+    return this.api.delete<{ removed: boolean }>(`/publisher/staff/${id}`);
+  }
+
+  resendStaffInvite(id: string) {
+    return this.api.post<{ inviteUrl: string; expiresAt: string; email: string }>(
+      `/publisher/staff/invites/${id}/resend`,
+    );
+  }
+
+  revokeStaffInvite(id: string) {
+    return this.api.delete<{ revoked: boolean }>(`/publisher/staff/invites/${id}`);
   }
 }
 

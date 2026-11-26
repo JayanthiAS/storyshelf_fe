@@ -74,7 +74,9 @@ export class PublisherLoginComponent {
       @if (loadingPreview()) {
         <app-spinner />
       } @else if (preview()) {
-        <p class="text-muted small">{{ preview()!.email }} · {{ preview()!.legalName }}</p>
+        <p class="text-muted small">
+          {{ preview()!.email }} · {{ preview()!.legalName }} · joining as {{ preview()!.orgRole }}
+        </p>
         <div class="border rounded p-3 mb-3 small" style="max-height: 180px; overflow: auto">
           {{ preview()!.termsText }}
         </div>
@@ -91,7 +93,7 @@ export class PublisherLoginComponent {
             </label>
           </div>
           @if (error()) { <div class="alert alert-danger">{{ error() }}</div> }
-          <button class="btn btn-primary w-100" [disabled]="loading() || form.invalid">Create publisher login</button>
+          <button class="btn btn-primary w-100" [disabled]="loading() || form.invalid">Accept and sign in</button>
         </form>
       } @else {
         <div class="alert alert-warning">{{ error() || 'This invite is no longer valid.' }}</div>
@@ -270,6 +272,12 @@ export class PublisherResetPasswordComponent {
           <app-guru-card title="First book">
             <p class="mb-2">Draft a book, then submit it. Readers see it only after Storyshelf approves.</p>
             <a routerLink="/publisher/books" class="btn btn-sm btn-outline-primary">Open books</a>
+          </app-guru-card>
+        </div>
+        <div class="col-md-4">
+          <app-guru-card title="Team">
+            <p class="mb-2">Invite an editor to prepare books, or a viewer who can look but not change them.</p>
+            <a routerLink="/publisher/team" class="btn btn-sm btn-outline-primary">Open team</a>
           </app-guru-card>
         </div>
       </div>
