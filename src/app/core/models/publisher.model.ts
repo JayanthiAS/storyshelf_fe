@@ -56,6 +56,38 @@ export interface PublisherHouse extends PublisherOrganization {
   pendingInvite: { email: string; expiresAt: string; createdAt: string } | null;
 }
 
+export interface PublisherAuthor {
+  _id: string;
+  name: string;
+  bio?: string;
+}
+
+export interface PublisherBook {
+  _id: string;
+  title: string;
+  slug: string;
+  description: string;
+  shortStory?: string;
+  authorId: string | { _id: string; name: string };
+  genreIds: Array<string | { _id: string; name: string }>;
+  language: string;
+  imprint: string;
+  isbn?: string | null;
+  releaseDate?: string | null;
+  coverImageUrl?: string | null;
+  fileUrl?: string | null;
+  fileMimeType?: string | null;
+  fileSizeBytes?: number | null;
+  status: 'draft' | 'published';
+  submissionStatus?: string;
+  reviewNote?: string | null;
+  reviewedAt?: string | null;
+  version: number;
+  takedownRequestedAt?: string | null;
+  takenDownAt?: string | null;
+  organizationId?: string | { _id: string; displayName?: string };
+}
+
 export interface CreatePublisherHouseDto {
   legalName: string;
   displayName: string;

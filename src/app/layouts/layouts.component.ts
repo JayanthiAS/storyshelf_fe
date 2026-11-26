@@ -145,6 +145,7 @@ export class AdminLayoutComponent {
     { label: 'Subscriptions', route: '/admin/subscriptions', icon: 'icofont icofont-credit-card' },
     { label: 'Notifications', route: '/admin/notifications', icon: 'icofont icofont-notification' },
     { label: 'Publishers', route: '/admin/publishers', icon: 'icofont icofont-building' },
+    { label: 'Reviews', route: '/admin/reviews', icon: 'icofont icofont-check' },
   ];
 
   toggleSidebar(): void {
@@ -199,6 +200,7 @@ export class PublisherLayoutComponent {
   sidebarCollapsed = signal(false);
   menuItems: AdminMenuItem[] = [
     { label: 'Home', route: '/publisher', icon: 'icofont icofont-home' },
+    { label: 'Books', route: '/publisher/books', icon: 'icofont icofont-book' },
     { label: 'House settings', route: '/publisher/settings', icon: 'icofont icofont-building' },
   ];
 

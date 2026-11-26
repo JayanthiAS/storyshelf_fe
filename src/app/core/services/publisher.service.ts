@@ -3,6 +3,8 @@ import { ApiService } from '../http/api.service';
 import {
   CreatePublisherHouseDto,
   CreatePublisherHouseResult,
+  PublisherAuthor,
+  PublisherBook,
   PublisherHouse,
   PublisherInvitePreview,
   PublisherSession,
@@ -51,3 +53,73 @@ export class AdminPublisherService {
     return this.api.post<PublisherHouse>(`/admin/publishers/${id}/reactivate`);
   }
 }
+
+@Injectable({ providedIn: 'root' })
+export class PublisherBookService {
+  private readonly api = inject(ApiService);
+
+  list() {
+    return this.api.get<PublisherBook[]>('/publisher/books');
+  }
+
+  get(id: string) {
+    return this.api.get<PublisherBook>(`/publisher/books/${id}`);
+  }
+
+  create(body: Record<string, unknown>) {
+    return this.api.post<PublisherBook>('/publisher/books', body);
+  }
+
+  update(id: string, body: Record<string, unknown>) {
+    return this.api.patch<PublisherBook>(`/publisher/books/${id}`, body);
+  }
+
+  uploadFile(id: string, file: File) {
+    const data = new FormData();
+    data.append('file', file);
+    return this.api.upload<PublisherBook>(`/publisher/books/${id}/file`, data);
+  }
+
+  uploadCover(id: string, file: File) {
+    const data = new FormData();
+    data.append('cover', file);
+    return this.api.upload<PublisherBook>(`/publisher/books/${id}/cover`, data);
+  }
+
+  submit(id: string) {
+    return this.api.post<PublisherBook>(`/publisher/books/${id}/submit`, {});
+  }
+
+  withdraw(id: string) {
+    return this.api.post<PublisherBook>(`/publisher/books/${id}/withdraw`, {});
+  }
+
+  requestTakedown(id: string) {
+    return this.api.post<PublisherBook>(`/publisher/books/${id}/takedown-request`, {});
+  }
+
+  authors() {
+    return this.api.get<PublisherAuthor[]>('/publisher/authors');
+  }
+
+  reviews() {
+    return this.api.get<PublisherBook[]>('/admin/publisher-reviews');
+  }
+
+  approve(id: string) {
+    return this.api.post<PublisherBook>(`/admin/publisher-reviews/${id}/approve`, {});
+  }
+
+  requestChanges(id: string, note: string) {
+    return this.api.post<PublisherBook>(`/admin/publisher-reviews/${id}/changes`, { note });
+  }
+
+  reject(id: string, note: string) {
+    return this.api.post<PublisherBook>(`/admin/publisher-reviews/${id}/reject`, { note });
+  }
+
+  confirmTakedown(id: string) {
+    return this.api.post<PublisherBook>(`/admin/publisher-reviews/${id}/takedown`, {});
+  }
+}
+

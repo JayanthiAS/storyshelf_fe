@@ -5,7 +5,7 @@ import { ToastService } from '../../shared/services/toast.service';
 import { ApiError } from '../models/api.model';
 import { ApiErrorCode } from '../models/enums.model';
 
-const SILENT_CODES: ApiErrorCode[] = ['BOOK_LOCKED', 'BOOK_NOT_RELEASED', 'SUBSCRIPTION_REQUIRED'];
+const SILENT_CODES: ApiErrorCode[] = ['BOOK_LOCKED', 'BOOK_NOT_RELEASED', 'BOOK_UNAVAILABLE', 'SUBSCRIPTION_REQUIRED', 'SUBMIT_INCOMPLETE', 'FILE_INVALID', 'FILE_TOO_LARGE', 'FILE_TYPE'];
 
 export const errorInterceptor: HttpInterceptorFn = (req, next) => {
   const toast = inject(ToastService);

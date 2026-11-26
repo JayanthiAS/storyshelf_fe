@@ -288,6 +288,8 @@ export class BookReaderComponent implements OnInit, OnDestroy {
           this.showUpgrade.set(true);
         } else if (code === 'BOOK_NOT_RELEASED') {
           this.error.set('This book is not yet released.');
+        } else if (code === 'BOOK_UNAVAILABLE') {
+          this.error.set('This book is no longer available.');
         } else {
           this.error.set('Unable to load book content.');
         }

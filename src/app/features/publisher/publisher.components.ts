@@ -246,7 +246,7 @@ export class PublisherResetPasswordComponent {
   template: `
     @if (loading()) { <app-spinner /> } @else if (session()) {
       <h2 class="mb-1">{{ session()!.organization?.displayName || 'Publisher home' }}</h2>
-      <p class="text-muted">Readers cannot see your books until Storyshelf approves them. Book upload is the next step.</p>
+      <p class="text-muted">Readers cannot see a book until Storyshelf approves it.</p>
       @if (session()!.organization?.status === 'suspended') {
         <div class="alert alert-warning">This house is suspended. You can sign in, and changes stay paused until Storyshelf reactivates it.</div>
       }
@@ -268,7 +268,8 @@ export class PublisherResetPasswordComponent {
         </div>
         <div class="col-md-4">
           <app-guru-card title="First book">
-            <p class="mb-0 text-muted">Upload arrives in the next release. Your login and house record are ready.</p>
+            <p class="mb-2">Draft a book, then submit it. Readers see it only after Storyshelf approves.</p>
+            <a routerLink="/publisher/books" class="btn btn-sm btn-outline-primary">Open books</a>
           </app-guru-card>
         </div>
       </div>

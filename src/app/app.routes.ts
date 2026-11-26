@@ -100,6 +100,7 @@ export const routes: Routes = [
       { path: 'notifications', loadComponent: () => import('./features/admin/admin.components').then((m) => m.AdminNotificationsComponent) },
       { path: 'publishers/new', loadComponent: () => import('./features/publisher/admin-publisher.components').then((m) => m.AdminPublisherFormComponent) },
       { path: 'publishers', loadComponent: () => import('./features/publisher/admin-publisher.components').then((m) => m.AdminPublishersComponent) },
+      { path: 'reviews', loadComponent: () => import('./features/publisher/admin-review.components').then((m) => m.AdminPublisherReviewsComponent) },
     ],
   },
   {
@@ -108,6 +109,9 @@ export const routes: Routes = [
     canActivate: [publisherGuard],
     children: [
       { path: '', loadComponent: () => import('./features/publisher/publisher.components').then((m) => m.PublisherHomeComponent) },
+      { path: 'books/new', loadComponent: () => import('./features/publisher/publisher-books.components').then((m) => m.PublisherBookFormComponent) },
+      { path: 'books/:id', loadComponent: () => import('./features/publisher/publisher-books.components').then((m) => m.PublisherBookFormComponent) },
+      { path: 'books', loadComponent: () => import('./features/publisher/publisher-books.components').then((m) => m.PublisherBooksComponent) },
       { path: 'settings', loadComponent: () => import('./features/publisher/publisher.components').then((m) => m.PublisherSettingsComponent) },
     ],
   },
