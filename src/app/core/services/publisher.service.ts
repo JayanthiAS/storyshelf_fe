@@ -27,6 +27,12 @@ export class PublisherService {
     return this.api.patch<PublisherSession>('/publisher/organization', body);
   }
 
+  uploadLogo(file: File) {
+    const data = new FormData();
+    data.append('logo', file);
+    return this.api.upload<PublisherSession>('/publisher/organization/logo', data);
+  }
+
   staff() {
     return this.api.get<PublisherStaffList>('/publisher/staff');
   }

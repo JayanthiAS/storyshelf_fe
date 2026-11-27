@@ -41,6 +41,7 @@ export interface PublisherSession {
     booksReady: boolean;
     inReview: number;
     live: number;
+    logoReady: boolean;
   };
 }
 

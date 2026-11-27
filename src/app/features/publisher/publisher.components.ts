@@ -8,6 +8,7 @@ import { PublisherService } from '../../core/services/publisher.service';
 import { PublisherInvitePreview, PublisherSession } from '../../core/models/publisher.model';
 import { GuruCardComponent, SpinnerComponent } from '../../shared/layout/layout.components';
 import { ToastService } from '../../shared/services/toast.service';
+import { IMAGE_FILE_TYPES, resolveUploadUrl, validateUploadFile } from '../../core/utils/helpers';
 
 @Component({
   selector: 'app-publisher-login',
@@ -264,7 +265,10 @@ export class PublisherResetPasswordComponent {
         </div>
         <div class="col-md-4">
           <app-guru-card title="House profile">
-            <p class="mb-2">{{ session()!.checklist.profileReady ? 'Website added' : 'Add a website so readers know the house.' }}</p>
+            @if (session()!.organization?.logoUrl) {
+              <img [src]="logo(session()!.organization!.logoUrl)" alt="" class="mb-2" style="max-height: 48px" />
+            }
+            <p class="mb-2">{{ profileStatus(session()!) }}</p>
             <a routerLink="/publisher/settings" class="btn btn-sm btn-outline-primary">House settings</a>
           </app-guru-card>
         </div>
@@ -288,6 +292,19 @@ export class PublisherHomeComponent implements OnInit {
   private publishers = inject(PublisherService);
   loading = signal(true);
   session = signal<PublisherSession | null>(null);
+
+  logo(path: string | null): string {
+    return resolveUploadUrl(path || undefined);
+  }
+
+  profileStatus(session: PublisherSession): string {
+    const website = session.checklist.profileReady;
+    const hasLogo = session.checklist.logoReady;
+    if (website && hasLogo) return 'Website and logo are set.';
+    if (!website && !hasLogo) return 'Add a website and a logo so readers recognize the house.';
+    if (!hasLogo) return 'Add a logo. The website is already set.';
+    return 'Add a website. The logo is already set.';
+  }
 
   bookStatus(session: PublisherSession): string {
     if (!session.checklist.booksReady) {
@@ -343,6 +360,17 @@ export class PublisherHomeComponent implements OnInit {
             <label class="form-label">Website</label>
             <input class="form-control" formControlName="website" placeholder="https://" />
           </div>
+          <div class="mb-3">
+            <label class="form-label">Logo</label>
+            @if (session()!.organization?.logoUrl) {
+              <div class="mb-2">
+                <img [src]="logo(session()!.organization!.logoUrl)" alt="House logo" style="max-height: 72px" />
+              </div>
+            }
+            <input type="file" class="form-control" accept="image/jpeg,image/png,image/webp" (change)="onLogo($event)" [disabled]="logoBusy() || session()!.membership?.orgRole !== 'owner' || session()!.organization?.status === 'suspended'" />
+            <div class="form-text">JPEG, PNG, or WebP. Readers see this with the house.</div>
+            @if (logoError()) { <div class="alert alert-danger mt-2 mb-0">{{ logoError() }}</div> }
+          </div>
           @if (error()) { <div class="alert alert-danger">{{ error() }}</div> }
           <button class="btn btn-primary" [disabled]="saving() || form.invalid || session()!.membership?.orgRole !== 'owner' || session()!.organization?.status === 'suspended'">
             Save
@@ -370,7 +398,9 @@ export class PublisherSettingsComponent implements OnInit {
   private toast = inject(ToastService);
   loading = signal(true);
   saving = signal(false);
+  logoBusy = signal(false);
   error = signal('');
+  logoError = signal('');
   session = signal<PublisherSession | null>(null);
   form = this.fb.group({
     displayName: ['', [Validators.required, Validators.minLength(2)]],
@@ -390,6 +420,32 @@ export class PublisherSettingsComponent implements OnInit {
         this.loading.set(false);
       },
       error: () => this.loading.set(false),
+    });
+  }
+
+  logo(path: string | null): string {
+    return resolveUploadUrl(path || undefined);
+  }
+
+  onLogo(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+    const problem = validateUploadFile(file, IMAGE_FILE_TYPES);
+    this.logoError.set(problem || '');
+    if (problem) return;
+    this.logoBusy.set(true);
+    this.publishers.uploadLogo(file).subscribe({
+      next: (session) => {
+        this.session.set(session);
+        this.logoBusy.set(false);
+        this.toast.success('Logo saved');
+      },
+      error: (e) => {
+        this.logoError.set(e.error?.message || 'Could not save the logo');
+        this.logoBusy.set(false);
+      },
     });
   }
 
