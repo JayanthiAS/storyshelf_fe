@@ -259,8 +259,11 @@ export class PublisherResetPasswordComponent {
       <div class="row g-3">
         <div class="col-md-4">
           <app-guru-card title="Terms">
-            <p class="mb-1">{{ session()!.checklist.termsAccepted ? 'Accepted' : 'Not accepted yet' }}</p>
-            <p class="text-muted small mb-0">Complimentary hosting. No charge and no payout in this phase.</p>
+            <p class="mb-1">{{ session()!.checklist.termsAccepted ? 'Current terms accepted' : 'Current terms need acceptance' }}</p>
+            <p class="text-muted small mb-2">Complimentary hosting. No charge and no payout until a later agreement. Books already on the shelf stay up.</p>
+            @if (!session()!.checklist.termsAccepted) {
+              <a routerLink="/publisher/settings" class="btn btn-sm btn-outline-primary">Review terms</a>
+            }
           </app-guru-card>
         </div>
         <div class="col-md-4">
@@ -382,12 +385,21 @@ export class PublisherHomeComponent implements OnInit {
       </app-guru-card>
       <app-guru-card title="Complimentary terms">
         <p class="small mb-2">{{ session()!.agreement?.termsText }}</p>
-        <p class="text-muted small mb-0">
+        <p class="text-muted small mb-2">
           Version {{ session()!.agreement?.termsVersion || 'complimentary-v1' }}.
           @if (session()!.agreement?.acceptedAt) {
             Accepted {{ session()!.agreement!.acceptedAt | date:'medium' }}.
+          } @else {
+            Not accepted yet. New submissions stay closed until the owner accepts. Books already on the shelf stay up.
           }
         </p>
+        @if (!session()!.checklist.termsAccepted && session()!.membership?.orgRole === 'owner') {
+          <button class="btn btn-primary" type="button" [disabled]="accepting() || session()!.organization?.status === 'suspended'" (click)="acceptTerms()">Accept current terms</button>
+        }
+        @if (!session()!.checklist.termsAccepted && session()!.membership?.orgRole !== 'owner') {
+          <p class="text-muted small mb-0">Ask the house owner to accept these terms.</p>
+        }
+        @if (termsError()) { <div class="alert alert-danger mt-2 mb-0">{{ termsError() }}</div> }
       </app-guru-card>
     }
   `,
@@ -401,6 +413,8 @@ export class PublisherSettingsComponent implements OnInit {
   logoBusy = signal(false);
   error = signal('');
   logoError = signal('');
+  termsError = signal('');
+  accepting = signal(false);
   session = signal<PublisherSession | null>(null);
   form = this.fb.group({
     displayName: ['', [Validators.required, Validators.minLength(2)]],
@@ -445,6 +459,22 @@ export class PublisherSettingsComponent implements OnInit {
       error: (e) => {
         this.logoError.set(e.error?.message || 'Could not save the logo');
         this.logoBusy.set(false);
+      },
+    });
+  }
+
+  acceptTerms(): void {
+    this.accepting.set(true);
+    this.termsError.set('');
+    this.publishers.acceptTerms().subscribe({
+      next: (session) => {
+        this.session.set(session);
+        this.accepting.set(false);
+        this.toast.success('Current terms accepted');
+      },
+      error: (e) => {
+        this.termsError.set(e.error?.message || 'Could not accept the terms');
+        this.accepting.set(false);
       },
     });
   }

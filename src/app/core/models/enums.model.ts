@@ -44,4 +44,5 @@ export type ApiErrorCode =
   | 'FILE_TOO_LARGE'
   | 'FILE_TYPE'
   | 'SUBMIT_INCOMPLETE'
-  | 'ORG_SUSPENDED';
+  | 'ORG_SUSPENDED'
+  | 'TERMS_REQUIRED';

@@ -33,6 +33,10 @@ export class PublisherService {
     return this.api.upload<PublisherSession>('/publisher/organization/logo', data);
   }
 
+  acceptTerms() {
+    return this.api.post<PublisherSession>('/publisher/terms/accept', { acceptTerms: true });
+  }
+
   staff() {
     return this.api.get<PublisherStaffList>('/publisher/staff');
   }

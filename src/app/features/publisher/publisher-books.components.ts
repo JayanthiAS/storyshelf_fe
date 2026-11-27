@@ -166,10 +166,13 @@ export class PublisherBooksComponent implements OnInit {
               @if (book()?.fileSizeBytes) { <div class="form-text">{{ formatBytes(book()!.fileSizeBytes!) }} attached.</div> }
             </div>
           </div>
+          @if (!termsAccepted() && !locked()) {
+            <div class="alert alert-warning">The owner must accept the current terms before this book can be submitted. Books already on the shelf stay up. <a routerLink="/publisher/settings">Review terms</a></div>
+          }
           @if (error()) { <div class="alert alert-danger">{{ error() }}</div> }
           @if (!locked()) {
             <button class="btn btn-outline-primary me-2" type="submit" [disabled]="saving()">Save draft</button>
-            <button class="btn btn-primary" type="button" [disabled]="saving()" (click)="save(true)">Submit for review</button>
+            <button class="btn btn-primary" type="button" [disabled]="saving() || !termsAccepted()" (click)="save(true)">Submit for review</button>
           }
           @if (book()?.submissionStatus === 'submitted') {
             <button class="btn btn-outline-secondary" type="button" [disabled]="saving()" (click)="withdraw()">Withdraw</button>
@@ -199,6 +202,7 @@ export class PublisherBookFormComponent implements OnInit {
   selectedGenres = signal<string[]>([]);
   suspended = signal(false);
   isOwner = signal(false);
+  termsAccepted = signal(true);
   private coverFile: File | null = null;
   private bookFile: File | null = null;
   label = bookStatusLabel;
@@ -227,6 +231,7 @@ export class PublisherBookFormComponent implements OnInit {
         this.genres.set(genres.items);
         this.suspended.set(session.organization?.status === 'suspended');
         this.isOwner.set(session.membership?.orgRole === 'owner');
+        this.termsAccepted.set(session.checklist.termsAccepted);
         if (book) this.applyBook(book);
         this.loading.set(false);
       },
@@ -260,6 +265,10 @@ export class PublisherBookFormComponent implements OnInit {
 
   save(submitAfter: boolean): void {
     if (this.form.invalid || this.locked()) return;
+    if (submitAfter && !this.termsAccepted()) {
+      this.error.set('The house owner must accept the current complimentary terms before submitting a book.');
+      return;
+    }
     this.saving.set(true);
     this.error.set('');
     const value = this.form.getRawValue();
