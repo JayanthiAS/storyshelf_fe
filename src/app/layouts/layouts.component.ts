@@ -183,6 +183,12 @@ export class AdminLayoutComponent {
         <header class="pcoded-header d-flex justify-content-between align-items-center">
           <button class="btn btn-link" (click)="toggleSidebar()"><i class="icofont icofont-navigation-menu"></i></button>
           <div class="d-flex align-items-center gap-2">
+            <a routerLink="/publisher/notifications" class="btn btn-link position-relative" aria-label="Notifications">
+              <i class="icofont icofont-notification"></i>
+              @if (unreadCount() > 0) {
+                <span class="badge bg-danger position-absolute top-0 start-100 translate-middle">{{ unreadCount() }}</span>
+              }
+            </a>
             <span class="text-muted">{{ auth.currentUser()?.email }}</span>
             <button class="btn btn-sm btn-outline-danger" (click)="logout()">Logout</button>
           </div>
@@ -195,15 +201,29 @@ export class AdminLayoutComponent {
     <app-toast-container />
   `,
 })
-export class PublisherLayoutComponent {
+export class PublisherLayoutComponent implements OnInit, OnDestroy {
   auth = inject(AuthService);
+  private notifications = inject(NotificationService);
+  unreadCount = this.notifications.unreadCountState;
   sidebarCollapsed = signal(false);
+  private pollTimer?: ReturnType<typeof setInterval>;
   menuItems: AdminMenuItem[] = [
     { label: 'Home', route: '/publisher', icon: 'icofont icofont-home' },
     { label: 'Books', route: '/publisher/books', icon: 'icofont icofont-book' },
+    { label: 'Notifications', route: '/publisher/notifications', icon: 'icofont icofont-notification' },
     { label: 'Team', route: '/publisher/team', icon: 'icofont icofont-users-social' },
     { label: 'House settings', route: '/publisher/settings', icon: 'icofont icofont-building' },
   ];
+
+  ngOnInit(): void {
+    const load = () => this.notifications.unreadCount().subscribe();
+    load();
+    this.pollTimer = setInterval(load, environment.notificationPollMs);
+  }
+
+  ngOnDestroy(): void {
+    if (this.pollTimer) clearInterval(this.pollTimer);
+  }
 
   toggleSidebar(): void {
     this.sidebarCollapsed.update((v) => !v);

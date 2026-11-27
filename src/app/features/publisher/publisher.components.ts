@@ -269,8 +269,8 @@ export class PublisherResetPasswordComponent {
           </app-guru-card>
         </div>
         <div class="col-md-4">
-          <app-guru-card title="First book">
-            <p class="mb-2">Draft a book, then submit it. Readers see it only after Storyshelf approves.</p>
+          <app-guru-card title="Books">
+            <p class="mb-2">{{ bookStatus(session()!) }}</p>
             <a routerLink="/publisher/books" class="btn btn-sm btn-outline-primary">Open books</a>
           </app-guru-card>
         </div>
@@ -288,6 +288,21 @@ export class PublisherHomeComponent implements OnInit {
   private publishers = inject(PublisherService);
   loading = signal(true);
   session = signal<PublisherSession | null>(null);
+
+  bookStatus(session: PublisherSession): string {
+    if (!session.checklist.booksReady) {
+      return 'Draft a book, then submit it. Readers see it only after Storyshelf approves.';
+    }
+    if (session.checklist.inReview > 0) {
+      const count = session.checklist.inReview;
+      return `${count} ${count === 1 ? 'book is' : 'books are'} waiting on Storyshelf.`;
+    }
+    if (session.checklist.live > 0) {
+      const count = session.checklist.live;
+      return `${count} ${count === 1 ? 'book is' : 'books are'} on the shelf.`;
+    }
+    return 'Your drafts are saved. Submit one when it is ready.';
+  }
 
   ngOnInit(): void {
     this.publishers.me().subscribe({

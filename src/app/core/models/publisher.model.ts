@@ -39,6 +39,8 @@ export interface PublisherSession {
     termsAccepted: boolean;
     profileReady: boolean;
     booksReady: boolean;
+    inReview: number;
+    live: number;
   };
 }
 

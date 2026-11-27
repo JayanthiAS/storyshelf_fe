@@ -30,6 +30,7 @@ export enum NotificationType {
   System = 'system',
   Subscription = 'subscription',
   Release = 'release',
+  Publisher = 'publisher',
 }
 
 export type ApiErrorCode =
